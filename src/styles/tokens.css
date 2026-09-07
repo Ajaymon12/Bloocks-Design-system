@@ -1,0 +1,189 @@
+/*
+ * Design tokens sourced from Figma: AIA - Component Library
+ * https://www.figma.com/design/j6l3kRxBQRNGbf3cwR9NZq/AIA---Component-Library?node-id=54-178
+ *
+ * Note: Red-200 in the source file has a duplicated hex value (copy-paste error —
+ * identical to Red-100). Corrected here using the file's own HSL(0, 98%, 83%) label,
+ * which interpolates cleanly between Red-100 and Red-300.
+ */
+
+:root {
+  /* Palette — Green (success) */
+  --palette-green-50: #efffef;
+  --palette-green-100: #ccf1cb;
+  --palette-green-200: #a3e1a3;
+  --palette-green-300: #74ce73;
+  --palette-green-400: #3eb83c;
+  --palette-green-500: #03a000;
+  --palette-green-600: #038501;
+  --palette-green-700: #036a02;
+  --palette-green-800: #044e02;
+  --palette-green-900: #043003;
+  --palette-green-950: #041804;
+
+  /* Palette — Red (danger) */
+  --palette-red-50: #ffefef;
+  --palette-red-100: #ffcfcf;
+  --palette-red-200: #fea9a9;
+  --palette-red-300: #fe7f7f;
+  --palette-red-400: #fe4d4d;
+  --palette-red-500: #fd1717;
+  --palette-red-600: #d21313;
+  --palette-red-700: #a80f0f;
+  --palette-red-800: #7d0c0c;
+  --palette-red-900: #4e0707;
+  --palette-red-950: #280404;
+
+  /* Palette — Blue (brand primary) */
+  --palette-blue-50: #f6f7ff;
+  --palette-blue-100: #e2e5fb;
+  --palette-blue-200: #bac3f4;
+  --palette-blue-300: #7e8ee7;
+  --palette-blue-400: #465ed5;
+  --palette-blue-500: #3146b0;
+  --palette-blue-600: #344593;
+  --palette-blue-700: #35437e;
+  --palette-blue-800: #333f66;
+  --palette-blue-900: #303850;
+  --palette-blue-950: #21263c;
+
+  /* Palette — Amber (warning; "Yellow / Orange" in Figma) */
+  --palette-amber-50: #fffaf1;
+  --palette-amber-100: #ffefc9;
+  --palette-amber-200: #ffe09e;
+  --palette-amber-300: #ffce6e;
+  --palette-amber-400: #ffb830;
+  --palette-amber-500: #ffa800;
+  --palette-amber-600: #d48c00;
+  --palette-amber-700: #a86f00;
+  --palette-amber-800: #7d5300;
+  --palette-amber-900: #523700;
+  --palette-amber-950: #3d2800;
+
+  /* Palette — Neutral (grayscale) */
+  --palette-neutral-0: #ffffff;
+  --palette-neutral-50: #efefef;
+  --palette-neutral-100: #e0e0e0;
+  --palette-neutral-200: #c4c4c4;
+  --palette-neutral-300: #a8a8a8;
+  --palette-neutral-400: #8c8c8c;
+  --palette-neutral-500: #707070;
+  --palette-neutral-600: #545454;
+  --palette-neutral-700: #383838;
+  --palette-neutral-800: #242424;
+  --palette-neutral-900: #121212;
+  --palette-neutral-950: #080808;
+  --palette-neutral-1000: #000000;
+
+  /*
+   * Semantic tokens — proposed mapping, light mode (default).
+   * Components should consume these, not the palette tokens directly,
+   * so theme switching (below) doesn't require touching component code.
+   */
+  --color-bg: var(--palette-neutral-0);
+  --color-bg-subtle: var(--palette-neutral-50);
+  --color-surface: var(--palette-neutral-0);
+  --color-surface-subtle: var(--palette-neutral-50);
+  --color-border: var(--palette-neutral-200);
+  --color-border-strong: var(--palette-neutral-300);
+  --color-text: var(--palette-neutral-900);
+  --color-text-secondary: var(--palette-neutral-500);
+  --color-text-on-primary: var(--palette-neutral-0);
+
+  --color-primary: var(--palette-blue-500);
+  --color-primary-hover: var(--palette-blue-600);
+  --color-primary-active: var(--palette-blue-700);
+  --color-primary-subtle: var(--palette-blue-50);
+
+  --color-success: var(--palette-green-500);
+  --color-success-hover: var(--palette-green-600);
+  --color-success-subtle: var(--palette-green-50);
+
+  --color-danger: var(--palette-red-500);
+  --color-danger-hover: var(--palette-red-600);
+  --color-danger-subtle: var(--palette-red-50);
+
+  --color-warning: var(--palette-amber-500);
+  --color-warning-hover: var(--palette-amber-600);
+  --color-warning-subtle: var(--palette-amber-50);
+
+  color-scheme: light dark;
+
+  /*
+   * Border radius scale — sourced from Figma: Karbon - AI Accountant
+   * https://www.figma.com/design/9sL5Vrc6a3NzoLve2o9zgr/Karbon---AI-Accountant?node-id=17097-54020&view=variables
+   * ("Border" variable collection; variables are named by their own px value.)
+   */
+  --radius-0: 0px;
+  --radius-2: 2px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-24: 24px;
+  --radius-32: 32px;
+  --radius-48: 48px;
+}
+
+/* Dark mode — follows system preference unless overridden by [data-theme]. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: var(--palette-neutral-950);
+    --color-bg-subtle: var(--palette-neutral-900);
+    --color-surface: var(--palette-neutral-900);
+    --color-surface-subtle: var(--palette-neutral-800);
+    --color-border: var(--palette-neutral-700);
+    --color-border-strong: var(--palette-neutral-600);
+    --color-text: var(--palette-neutral-50);
+    --color-text-secondary: var(--palette-neutral-400);
+    --color-text-on-primary: var(--palette-neutral-0);
+
+    --color-primary: var(--palette-blue-300);
+    --color-primary-hover: var(--palette-blue-200);
+    --color-primary-active: var(--palette-blue-100);
+    --color-primary-subtle: var(--palette-blue-950);
+
+    --color-success: var(--palette-green-400);
+    --color-success-hover: var(--palette-green-300);
+    --color-success-subtle: var(--palette-green-950);
+
+    --color-danger: var(--palette-red-400);
+    --color-danger-hover: var(--palette-red-300);
+    --color-danger-subtle: var(--palette-red-950);
+
+    --color-warning: var(--palette-amber-400);
+    --color-warning-hover: var(--palette-amber-300);
+    --color-warning-subtle: var(--palette-amber-950);
+  }
+}
+
+/* Explicit override — wins in both directions regardless of system preference. */
+[data-theme='dark'] {
+  --color-bg: var(--palette-neutral-950);
+  --color-bg-subtle: var(--palette-neutral-900);
+  --color-surface: var(--palette-neutral-900);
+  --color-surface-subtle: var(--palette-neutral-800);
+  --color-border: var(--palette-neutral-700);
+  --color-border-strong: var(--palette-neutral-600);
+  --color-text: var(--palette-neutral-50);
+  --color-text-secondary: var(--palette-neutral-400);
+  --color-text-on-primary: var(--palette-neutral-0);
+
+  --color-primary: var(--palette-blue-300);
+  --color-primary-hover: var(--palette-blue-200);
+  --color-primary-active: var(--palette-blue-100);
+  --color-primary-subtle: var(--palette-blue-950);
+
+  --color-success: var(--palette-green-400);
+  --color-success-hover: var(--palette-green-300);
+  --color-success-subtle: var(--palette-green-950);
+
+  --color-danger: var(--palette-red-400);
+  --color-danger-hover: var(--palette-red-300);
+  --color-danger-subtle: var(--palette-red-950);
+
+  --color-warning: var(--palette-amber-400);
+  --color-warning-hover: var(--palette-amber-300);
+  --color-warning-subtle: var(--palette-amber-950);
+}

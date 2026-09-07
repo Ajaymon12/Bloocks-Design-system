@@ -1,4 +1,5 @@
 import type { Preview } from '@storybook/react-vite'
+import '../src/styles/tokens.css'
 
 const preview: Preview = {
   parameters: {
@@ -16,6 +17,32 @@ const preview: Preview = {
       test: 'todo'
     }
   },
+
+  globalTypes: {
+    theme: {
+      description: 'Theme',
+      toolbar: {
+        title: 'Theme',
+        icon: 'mirror',
+        items: [
+          { value: 'light', title: 'Light' },
+          { value: 'dark', title: 'Dark' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+
+  initialGlobals: {
+    theme: 'light',
+  },
+
+  decorators: [
+    (Story, context) => {
+      document.documentElement.setAttribute('data-theme', context.globals.theme ?? 'light')
+      return <Story />
+    },
+  ],
 };
 
 export default preview;
