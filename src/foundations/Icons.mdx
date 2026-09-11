@@ -1,0 +1,17 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { IconGallery } from './IconGallery'
+
+<Meta title="Foundations/Icons" />
+
+# Icons
+
+This design system uses [Lucide](https://lucide.dev) — the same icon set used throughout the
+Figma component library (its "Icons" page is a full Lucide dump). Import icons directly from
+`lucide-react`, e.g. `import { ChevronDown } from 'lucide-react'`.
+
+**Convention:** this page is the single place to browse and pick icons from. Whenever a
+component needs one, look it up here (search, or filter to "Used in this project only") instead
+of introducing a different icon library. Icons already in use are marked with a dot and listed
+with which component uses them — keep `src/foundations/usedIcons.ts` in sync as that changes.
+
+<IconGallery />

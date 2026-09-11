@@ -1,5 +1,5 @@
 import type { Preview } from '@storybook/react-vite'
-import '../src/styles/tokens.css'
+import '../src/styles/tailwind.css'
 
 const preview: Preview = {
   parameters: {
@@ -15,7 +15,41 @@ const preview: Preview = {
       // 'error' - fail CI on a11y violations
       // 'off' - skip a11y checks entirely
       test: 'todo'
-    }
+    },
+
+    options: {
+      storySort: {
+        order: [
+          'Foundations',
+          ['Colors', 'Icons'],
+          'Token',
+          ['Typography', 'Elevation', 'Border', 'Spacing', 'Breakpoints', 'Motion', 'Theme'],
+          'Components',
+          [
+            'Button',
+            'ButtonGroup',
+            'Breadcrumb',
+            'Badge',
+            'Input',
+            [
+              'TextInput',
+              'Select',
+              'TextArea',
+              'SearchInput',
+              'PasswordInput',
+              'CounterInput',
+              'ColorInput',
+              'PhoneNumberInput',
+              'OTPInput',
+            ],
+            'Checkbox',
+            ['Checkbox', 'CheckboxGroup'],
+            'Table',
+          ],
+          '*',
+        ],
+      },
+    },
   },
 
   globalTypes: {

@@ -86,6 +86,10 @@
   --color-surface-subtle: var(--palette-neutral-50);
   --color-border: var(--palette-neutral-200);
   --color-border-strong: var(--palette-neutral-300);
+  /* Table grid lines — lighter than the general --color-border, per design feedback. */
+  --color-table-border: var(--palette-neutral-50);
+  --color-table-header-bg: var(--palette-blue-50);
+  --color-table-row-hover: var(--palette-blue-50);
   --color-text: var(--palette-neutral-900);
   --color-text-secondary: var(--palette-neutral-500);
   --color-text-on-primary: var(--palette-neutral-0);
@@ -107,6 +111,31 @@
   --color-warning-hover: var(--palette-amber-600);
   --color-warning-subtle: var(--palette-amber-50);
 
+  /*
+   * Badge — dedicated semantic tokens, named after Blade's color vocabulary (positive/negative/
+   * notice/information/neutral/primary) rather than this file's own success/danger/warning, since
+   * Badge's color prop deliberately mirrors Blade's Badge API. Not reused from -subtle/-hover
+   * above: Figma's Status-badge spec uses a one-step-darker background than -subtle for
+   * notice/positive/primary, and text colors that don't match any existing token. See Figma:
+   * AIA - Component Library, Status badge.
+   */
+  --color-badge-primary-bg: var(--palette-blue-100);
+  --color-badge-primary-text: var(--palette-blue-950); /* unusually dark vs. every other primary
+    token (max is blue-700) — flag for designer sanity-check, implemented as Figma-specified. */
+  --color-badge-positive-bg: var(--palette-green-100);
+  --color-badge-positive-text: var(--palette-green-800);
+  --color-badge-negative-bg: var(--palette-red-50);
+  --color-badge-negative-text: var(--palette-red-700);
+  --color-badge-notice-bg: var(--palette-amber-100);
+  --color-badge-notice-text: var(--palette-amber-700);
+  --color-badge-neutral-bg: var(--palette-neutral-50);
+  --color-badge-neutral-text: var(--palette-neutral-600);
+  /* information: no distinct Figma spec yet — aliased to primary's exact values for now.
+   * Replace with its own tokens once a real spec is provided (it'll look identical to primary
+   * until then). */
+  --color-badge-information-bg: var(--palette-blue-100);
+  --color-badge-information-text: var(--palette-blue-950);
+
   color-scheme: light dark;
 
   /*
@@ -124,6 +153,136 @@
   --radius-24: 24px;
   --radius-32: 32px;
   --radius-48: 48px;
+
+  /*
+   * Typography — sourced from Figma: Karbon - AI Accountant, "Typography" variable collection
+   * https://www.figma.com/design/9sL5Vrc6a3NzoLve2o9zgr/Karbon---AI-Accountant?node-id=17097-54020&view=variables
+   */
+  --font-family-primary: 'Open Sans', system-ui, -apple-system, sans-serif;
+
+  --font-weight-thin: 100;
+  --font-weight-extralight: 200;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+
+  --text-title-1-size: 72px;
+  --text-title-1-line-height: 88px;
+  --text-title-1-letter-spacing: -0.8px;
+
+  --text-title-2-size: 64px;
+  --text-title-2-line-height: 76px;
+  --text-title-2-letter-spacing: -0.8px;
+
+  --text-title-3-size: 56px;
+  --text-title-3-line-height: 68px;
+  --text-title-3-letter-spacing: -0.6px;
+
+  --text-h1-size: 56px;
+  --text-h1-line-height: 68px;
+  --text-h1-letter-spacing: -0.5px;
+
+  --text-h2-size: 48px;
+  --text-h2-line-height: 58px;
+  --text-h2-letter-spacing: -0.4px;
+
+  --text-h3-size: 40px;
+  --text-h3-line-height: 48px;
+  --text-h3-letter-spacing: -0.3px;
+
+  --text-h4-size: 32px;
+  --text-h4-line-height: 38px;
+  --text-h4-letter-spacing: -0.2px;
+
+  --text-h5-size: 24px;
+  --text-h5-line-height: 30px;
+  --text-h5-letter-spacing: -0.15px;
+
+  --text-h6-size: 20px;
+  --text-h6-line-height: 24px;
+  --text-h6-letter-spacing: 0px;
+
+  --text-label-1-size: 16px;
+  --text-label-1-line-height: 22px;
+  --text-label-1-letter-spacing: -0.18px;
+
+  --text-label-2-size: 14px;
+  --text-label-2-line-height: 20px;
+  --text-label-2-letter-spacing: -0.16px;
+
+  --text-label-3-size: 12px;
+  --text-label-3-line-height: 16px;
+  --text-label-3-letter-spacing: -0.12px;
+
+  --text-body-1-size: 18px;
+  --text-body-1-line-height: 28px;
+  --text-body-1-letter-spacing: 0px;
+
+  --text-body-2-size: 16px;
+  --text-body-2-line-height: 24px;
+  --text-body-2-letter-spacing: 0px;
+
+  --text-body-3-size: 14px;
+  --text-body-3-line-height: 20px;
+  --text-body-3-letter-spacing: 0px;
+
+  --text-body-4-size: 12px;
+  --text-body-4-line-height: 16px;
+  --text-body-4-letter-spacing: 0px;
+
+  --text-caption-1-size: 10px;
+  --text-caption-1-line-height: 12px;
+  --text-caption-1-letter-spacing: 0px;
+
+  --text-caption-2-size: 9px;
+  --text-caption-2-line-height: 10px;
+  --text-caption-2-letter-spacing: 0px;
+
+  /*
+   * Spacing — sourced from Figma: Karbon - AI Accountant, "Space" variable collection
+   * https://www.figma.com/design/9sL5Vrc6a3NzoLve2o9zgr/Karbon---AI-Accountant?node-id=17097-54020&view=variables
+   */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-60: 60px;
+  --space-72: 72px;
+}
+
+/*
+ * Global keyboard-focus ring. Applies to every focusable element in every component —
+ * a single source of truth instead of each component defining its own :focus-visible rule.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/*
+ * Opt-out for inner controls (BaseInput/Select's actual <input>/<select>) that sit inside a
+ * wrapper which already draws its own custom focus ring — without this, the browser's default
+ * outline still draws on the inner element too (this rule is deliberately unlayered so it always
+ * wins over Tailwind's layered utilities, including that element's own `outline-none`), producing
+ * a second, smaller box inset inside the wrapper's ring instead of one clean outer ring.
+ */
+.no-inner-focus-ring:focus-visible {
+  outline: none;
 }
 
 /* Dark mode — follows system preference unless overridden by [data-theme]. */
@@ -135,6 +294,9 @@
     --color-surface-subtle: var(--palette-neutral-800);
     --color-border: var(--palette-neutral-700);
     --color-border-strong: var(--palette-neutral-600);
+    --color-table-border: var(--palette-neutral-700);
+    --color-table-header-bg: var(--palette-blue-950);
+    --color-table-row-hover: var(--palette-blue-900);
     --color-text: var(--palette-neutral-50);
     --color-text-secondary: var(--palette-neutral-400);
     --color-text-on-primary: var(--palette-neutral-0);
@@ -155,6 +317,19 @@
     --color-warning: var(--palette-amber-400);
     --color-warning-hover: var(--palette-amber-300);
     --color-warning-subtle: var(--palette-amber-950);
+
+    --color-badge-primary-bg: var(--palette-blue-950);
+    --color-badge-primary-text: var(--palette-blue-100);
+    --color-badge-positive-bg: var(--palette-green-950);
+    --color-badge-positive-text: var(--palette-green-300);
+    --color-badge-negative-bg: var(--palette-red-950);
+    --color-badge-negative-text: var(--palette-red-300);
+    --color-badge-notice-bg: var(--palette-amber-950);
+    --color-badge-notice-text: var(--palette-amber-300);
+    --color-badge-neutral-bg: var(--palette-neutral-800);
+    --color-badge-neutral-text: var(--palette-neutral-300);
+    --color-badge-information-bg: var(--palette-blue-950);
+    --color-badge-information-text: var(--palette-blue-100);
   }
 }
 
@@ -166,6 +341,9 @@
   --color-surface-subtle: var(--palette-neutral-800);
   --color-border: var(--palette-neutral-700);
   --color-border-strong: var(--palette-neutral-600);
+  --color-table-border: var(--palette-neutral-700);
+  --color-table-header-bg: var(--palette-blue-950);
+  --color-table-row-hover: var(--palette-blue-900);
   --color-text: var(--palette-neutral-50);
   --color-text-secondary: var(--palette-neutral-400);
   --color-text-on-primary: var(--palette-neutral-0);
@@ -186,4 +364,17 @@
   --color-warning: var(--palette-amber-400);
   --color-warning-hover: var(--palette-amber-300);
   --color-warning-subtle: var(--palette-amber-950);
+
+  --color-badge-primary-bg: var(--palette-blue-950);
+  --color-badge-primary-text: var(--palette-blue-100);
+  --color-badge-positive-bg: var(--palette-green-950);
+  --color-badge-positive-text: var(--palette-green-300);
+  --color-badge-negative-bg: var(--palette-red-950);
+  --color-badge-negative-text: var(--palette-red-300);
+  --color-badge-notice-bg: var(--palette-amber-950);
+  --color-badge-notice-text: var(--palette-amber-300);
+  --color-badge-neutral-bg: var(--palette-neutral-800);
+  --color-badge-neutral-text: var(--palette-neutral-300);
+  --color-badge-information-bg: var(--palette-blue-950);
+  --color-badge-information-text: var(--palette-blue-100);
 }
