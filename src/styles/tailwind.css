@@ -77,3 +77,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * Floating-panel entrance. Radix stamps data-state="open" on popover/menu content, so panels
+ * opt in with `data-[state=open]:animate-[popover-in_120ms_ease-out]`. Defined here rather than
+ * pulling in tailwindcss-animate for a single keyframe.
+ */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Respect reduced-motion: same keyframe name, no movement or fade. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes popover-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

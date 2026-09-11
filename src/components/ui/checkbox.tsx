@@ -2,14 +2,18 @@ import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
 import { Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+export type CheckboxSize = 'sm' | 'md'
+
 export function Checkbox({
   className,
+  size = 'md',
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+}: React.ComponentProps<typeof CheckboxPrimitive.Root> & { size?: CheckboxSize }) {
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        'peer inline-flex items-center justify-center shrink-0 size-4 box-border',
+        'peer inline-flex items-center justify-center shrink-0 box-border',
+        size === 'sm' ? 'size-3' : 'size-4',
         'bg-card border border-border rounded-[var(--radius-4)]',
         'transition-[background-color,border-color] duration-150 ease-in-out',
         'data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground',
@@ -21,7 +25,11 @@ export function Checkbox({
       {...props}
     >
       <CheckboxPrimitive.Indicator className="inline-flex items-center justify-center leading-none">
-        {props.checked === 'indeterminate' ? <Minus size={11} /> : <Check size={11} />}
+        {props.checked === 'indeterminate' ? (
+          <Minus size={size === 'sm' ? 9 : 11} />
+        ) : (
+          <Check size={size === 'sm' ? 9 : 11} />
+        )}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

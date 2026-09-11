@@ -90,6 +90,12 @@
   --color-table-border: var(--palette-neutral-50);
   --color-table-header-bg: var(--palette-blue-50);
   --color-table-row-hover: var(--palette-blue-50);
+  /* Floating-panel (Popover/Combobox/FilterDropdown) border — Figma's own dev-mode export for
+   * these panels; doesn't match any existing semantic token (checked --color-primary-hover/-active). */
+  --color-popover-border: var(--palette-blue-200);
+  /* First real elevation value in the system (Elevation.mdx is still awaiting a full Figma
+   * scale) — a two-layer, brand-tinted shadow for floating panels. */
+  --shadow-popover: 0 1px 2px 0 rgba(33, 38, 60, 0.06), 0 8px 24px -4px rgba(33, 38, 60, 0.14);
   --color-text: var(--palette-neutral-900);
   --color-text-secondary: var(--palette-neutral-500);
   --color-text-on-primary: var(--palette-neutral-0);
@@ -297,6 +303,8 @@
     --color-table-border: var(--palette-neutral-700);
     --color-table-header-bg: var(--palette-blue-950);
     --color-table-row-hover: var(--palette-blue-900);
+    --color-popover-border: var(--palette-blue-800);
+    --shadow-popover: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.55);
     --color-text: var(--palette-neutral-50);
     --color-text-secondary: var(--palette-neutral-400);
     --color-text-on-primary: var(--palette-neutral-0);
@@ -344,6 +352,8 @@
   --color-table-border: var(--palette-neutral-700);
   --color-table-header-bg: var(--palette-blue-950);
   --color-table-row-hover: var(--palette-blue-900);
+  --color-popover-border: var(--palette-blue-800);
+  --shadow-popover: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.55);
   --color-text: var(--palette-neutral-50);
   --color-text-secondary: var(--palette-neutral-400);
   --color-text-on-primary: var(--palette-neutral-0);
