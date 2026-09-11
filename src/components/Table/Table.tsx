@@ -1,6 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import type { ColumnDef, RowData, RowSelectionState, SortingState } from '@tanstack/react-table'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import type {
+  Column,
+  ColumnDef,
+  ColumnOrderState,
+  ColumnPinningState,
+  RowData,
+  RowSelectionState,
+  SortingState,
+  VisibilityState,
+} from '@tanstack/react-table'
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
@@ -8,6 +17,8 @@ import { AlignLeft, MoreVertical, WrapText } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table as TableRoot, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ColumnCustomizer } from '@/components/ColumnCustomizer'
+import type { ColumnCustomizerItem } from '@/components/ColumnCustomizer'
 import { cn } from '@/lib/utils'
 import { Pagination } from './Pagination'
 
@@ -25,6 +36,12 @@ declare module '@tanstack/react-table' {
      * regularly hold long text (a Description/Narration column, say). Clip truncates to one line
      * with an ellipsis; Wrap lets the cell grow to multiple lines instead. */
     textWrap?: boolean
+    /** Display name for the ColumnCustomizer panel. Needed because `header` is a render function
+     * (see `columnHeader()`), not a string — without this the panel falls back to `column.id`. */
+    title?: string
+    /** Excludes the column from the ColumnCustomizer's controls: always visible, not reorderable,
+     * pin toggle disabled. Matches the Figma spec's Date / Reviewed rows. */
+    lockColumn?: boolean
   }
 }
 
@@ -56,6 +73,10 @@ export type TableProps<TData> = {
    * instance). Switches the table to a fixed layout driven by TanStack's own column-sizing state
    * — off by default so tables that don't need it keep their natural content-based widths. */
   enableColumnResizing?: boolean
+  /** Renders a "Columns" toolbar button above the grid that opens the `ColumnCustomizer` panel:
+   * show/hide, reorder, and pin-left any column. Use `meta.title` to give a column a readable name
+   * in the panel and `meta.lockColumn` to exempt it from being hidden, moved or unpinned. */
+  enableColumnCustomization?: boolean
   className?: string
 }
 
@@ -73,6 +94,7 @@ export function Table<TData>({
   emptyState = 'No data',
   size = 'md',
   enableColumnResizing = false,
+  enableColumnCustomization = false,
   className,
 }: TableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
@@ -90,18 +112,32 @@ export function Table<TData>({
   // is only for beating a co-applied plain utility class; nothing here competes with one).
   const [focusedCell, setFocusedCell] = useState<CellPosition>({ row: 0, col: 0 })
   const cellRefs = useRef(new Map<string, HTMLTableCellElement>())
+  const headerRefs = useRef(new Map<string, HTMLTableCellElement>())
   const containerRef = useRef<HTMLDivElement>(null)
+  const [pinnedOffsets, setPinnedOffsets] = useState<Record<string, number>>({})
   // Per-column Wrap/Clip choice, for columns with `meta: { textWrap: true }`. Absent from a
   // column's entry here means "clip" (the default) — only wrapped columns need to be tracked.
   const [wrappedColumns, setWrappedColumns] = useState<Set<string>>(new Set())
+  // Column customization state. All three start empty, which is TanStack's own "nothing
+  // overridden" encoding — every column visible, natural order, nothing pinned. That makes
+  // "Reset Default" simply clearing all three back to empty.
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] })
 
-  const resolvedColumns = enableRowSelection ? [selectColumn<TData>(), ...columns] : columns
+  const resolvedColumns = useMemo(
+    () => (enableRowSelection ? [selectColumn<TData>(), ...columns] : columns),
+    [enableRowSelection, columns],
+  )
 
   const table = useReactTable({
     data,
     columns: resolvedColumns,
-    state: { sorting, rowSelection },
+    state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnOrderChange: setColumnOrder,
+    onColumnPinningChange: setColumnPinning,
     onRowSelectionChange: (updater) => {
       setRowSelection((old) => {
         const next = typeof updater === 'function' ? updater(old) : updater
@@ -124,7 +160,77 @@ export function Table<TData>({
   })
 
   const rows = table.getRowModel().rows
-  const colCount = resolvedColumns.length
+  // Visible leaf columns, not `resolvedColumns.length`: once the ColumnCustomizer can hide a
+  // column, the raw definition count over-reports and the arrow-key handler below would navigate
+  // to a column index that no longer has a cell.
+  const colCount = table.getVisibleLeafColumns().length
+
+  // The ColumnCustomizer speaks a flat item list, not TanStack columns — adapt in both directions.
+  // The internal row-selection checkbox column is never offered as customizable.
+  const customizerItems: ColumnCustomizerItem[] = table
+    .getAllLeafColumns()
+    .filter((column) => column.id !== SELECT_COLUMN_ID)
+    .map((column) => ({
+      id: column.id,
+      label: column.columnDef.meta?.title ?? column.id,
+      visible: column.getIsVisible(),
+      pinned: column.getIsPinned() === 'left',
+      locked: column.columnDef.meta?.lockColumn ?? false,
+    }))
+
+  function applyCustomizerItems(items: ColumnCustomizerItem[]) {
+    setColumnVisibility(Object.fromEntries(items.map((item) => [item.id, item.visible])))
+    // The select column always leads, so it's prepended rather than being part of the sortable list.
+    setColumnOrder([
+      ...(enableRowSelection ? [SELECT_COLUMN_ID] : []),
+      ...items.map((item) => item.id),
+    ])
+    setColumnPinning({ left: items.filter((item) => item.pinned).map((item) => item.id), right: [] })
+  }
+
+  function resetColumnsToDefault() {
+    setColumnVisibility({})
+    setColumnOrder([])
+    setColumnPinning({ left: [], right: [] })
+  }
+
+  // Sticky offsets for left-pinned columns, measured rather than taken from TanStack's
+  // `column.getStart('left')`: that sums `column.getSize()`, which is the 150px default unless
+  // resizing is on, so it only matches reality in the fixed-layout case. Header cell `offsetWidth`
+  // is correct either way — a sticky element's *width* is unaffected by being stuck, only its
+  // position is, so this stays right even while the table is scrolled.
+  const pinnedLeftIds = columnPinning.left ?? []
+  const columnSizing = table.getState().columnSizing
+  useLayoutEffect(() => {
+    if (pinnedLeftIds.length === 0) {
+      setPinnedOffsets((prev) => (Object.keys(prev).length === 0 ? prev : {}))
+      return
+    }
+    let offset = 0
+    const next: Record<string, number> = {}
+    for (const column of table.getLeftVisibleLeafColumns()) {
+      next[column.id] = offset
+      offset += headerRefs.current.get(column.id)?.offsetWidth ?? 0
+    }
+    setPinnedOffsets((prev) => {
+      const keys = Object.keys(next)
+      const same = keys.length === Object.keys(prev).length && keys.every((key) => prev[key] === next[key])
+      return same ? prev : next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinnedLeftIds.join(','), columnVisibility, columnOrder, columnSizing, size, rows.length])
+
+  function pinnedStyle(column: Column<TData, unknown>): CSSProperties | undefined {
+    if (column.getIsPinned() !== 'left') return undefined
+    return { position: 'sticky', left: pinnedOffsets[column.id] ?? 0, zIndex: 2 }
+  }
+
+  /** The freeze line: a heavier border marking where the pinned block ends. */
+  function pinnedBorderClass(column: Column<TData, unknown>) {
+    return column.getIsPinned() === 'left' && column.getIsLastColumn('left')
+      ? 'border-r-2 border-r-[var(--color-border-strong)]'
+      : undefined
+  }
 
   // A native, document-level *capture* listener — not a React onKeyDownCapture prop on the cell.
   // A JSX capture handler on the <td> is not reliably invoked when a nested interactive control
@@ -177,6 +283,16 @@ export function Table<TData>({
 
   return (
     <div ref={containerRef} className={cn('flex flex-col gap-[var(--space-8)]', className)}>
+      {enableColumnCustomization && (
+        <div className="flex items-center justify-end">
+          <ColumnCustomizer
+            items={customizerItems}
+            onChange={applyCustomizerItems}
+            onResetWidth={enableColumnResizing ? () => table.resetColumnSizing() : undefined}
+            onResetDefault={resetColumnsToDefault}
+          />
+        </div>
+      )}
       <TableRoot
         role="grid"
         className={enableColumnResizing ? 'table-fixed w-auto' : undefined}
@@ -189,12 +305,20 @@ export function Table<TData>({
                 <TableHead
                   key={header.id}
                   role="columnheader"
-                  style={enableColumnResizing ? { width: header.getSize() } : undefined}
+                  ref={(el) => {
+                    if (el) headerRefs.current.set(header.column.id, el)
+                    else headerRefs.current.delete(header.column.id)
+                  }}
+                  style={{
+                    ...(enableColumnResizing ? { width: header.getSize() } : undefined),
+                    ...pinnedStyle(header.column),
+                  }}
                   className={cn(
                     'relative',
                     header.column.id === SELECT_COLUMN_ID && !enableColumnResizing && 'w-10',
                     header.column.columnDef.meta?.width,
                     header.column.columnDef.meta?.headerClassName,
+                    pinnedBorderClass(header.column),
                   )}
                 >
                   <div className="flex items-center justify-between gap-[var(--space-4)]">
@@ -303,12 +427,19 @@ export function Table<TData>({
                           prev.row === rowIndex && prev.col === colIndex ? prev : { row: rowIndex, col: colIndex },
                         )
                       }
-                      style={enableColumnResizing ? { width: cell.column.getSize() } : undefined}
+                      style={{
+                        ...(enableColumnResizing ? { width: cell.column.getSize() } : undefined),
+                        ...pinnedStyle(cell.column),
+                      }}
                       className={cn(
                         CELL_TEXT_CLASS[size],
                         cell.column.id === SELECT_COLUMN_ID && !enableColumnResizing && 'w-10',
                         cell.column.columnDef.meta?.width,
                         cell.column.columnDef.meta?.fillCell && 'p-0',
+                        // bg-inherit picks up the row's hover/selected colour; TableRow's base
+                        // bg-card keeps scrolled content from showing through when unstyled.
+                        cell.column.getIsPinned() === 'left' && 'bg-inherit',
+                        pinnedBorderClass(cell.column),
                         isClipped && 'overflow-hidden text-ellipsis',
                         // Cell content components (PlainTextCell, etc.) often carry their own
                         // `truncate` on an inner span — that sets whitespace/overflow directly on

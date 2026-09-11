@@ -33,7 +33,10 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
   return (
     <tr
       className={cn(
-        'group border-b border-[var(--color-table-border)] transition-colors duration-150 ease-in-out',
+        // The explicit `bg-card` is load-bearing for column pinning: a sticky pinned <td> uses
+        // `bg-inherit` to pick up the row's hover/selected colour, and a transparent row would
+        // let horizontally-scrolled content show through underneath it.
+        'group bg-card border-b border-[var(--color-table-border)] transition-colors duration-150 ease-in-out',
         className,
       )}
       {...props}

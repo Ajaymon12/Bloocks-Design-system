@@ -3,8 +3,14 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { expect, screen, waitFor, within } from 'storybook/test'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { MoreHorizontal } from 'lucide-react'
-import { Button } from '@/components/Button'
+import { Check, MoreHorizontal, Trash2 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Table } from './Table'
 import { columnHeader, sortableHeader } from './columnHeader'
 import { PlainTextCell } from './cells/PlainTextCell'
@@ -278,7 +284,33 @@ const salesColumns: ColumnDef<SalesVoucher, any>[] = [
     size: 64,
     cell: () => (
       <ActionsCell>
-        <Button variant="ghost" size="xs" leadingIcon={<MoreHorizontal size={14} />} accessibilityLabel="Row actions" />
+        <DropdownMenu>
+          {/* A native <button>, not <Button asChild>, on purpose: Button.tsx only forwards its
+              own declared props (no `...rest` spread onto the DOM node), so Radix's injected
+              onClick/aria-expanded/data-state from DropdownMenuTrigger's own `asChild` silently
+              never reach the real element and the menu never opens. Classes below match Button's
+              own ghost/xs icon-only output exactly. */}
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Row actions"
+              className="inline-flex items-center justify-center border-0 rounded-[var(--radius-6)] cursor-pointer bg-transparent text-primary hover:bg-[var(--color-primary-subtle)] p-0 w-7 h-7"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              <Check size={14} />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive">
+              <Trash2 size={14} />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </ActionsCell>
     ),
   },
@@ -598,6 +630,90 @@ export const TextWrap: Story = {
     await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: /Clip Text/ }))
     await waitFor(() => {
       expect(cell.getBoundingClientRect().height).toBe(heightBefore)
+    })
+  },
+}
+
+// --- Column customization -------------------------------------------------------------------
+// `meta.title` gives each column a readable name in the panel (`header` is a render function, so
+// there's no string to read off it), and `meta.lockColumn` exempts the two structural columns.
+
+type ChargebackRow = {
+  date: string
+  description: string
+  ledger: string
+  type: string
+  amount: number
+  gst: string
+  costCentre: string
+  reviewed: string
+}
+
+const CHARGEBACK_ROWS: ChargebackRow[] = [
+  { date: '12 Aug 2025', description: 'UPI settlement reversal', ledger: 'HDFC Bank', type: 'Debit', amount: -12400, gst: '27AAACH1234K', costCentre: 'Ops', reviewed: 'Yes' },
+  { date: '14 Aug 2025', description: 'Merchant chargeback — order #88412', ledger: 'ICICI Bank', type: 'Debit', amount: -3250, gst: '29AABCI5678L', costCentre: 'Support', reviewed: 'No' },
+  { date: '19 Aug 2025', description: 'Chargeback recovery credit', ledger: 'Axis Bank', type: 'Credit', amount: 3250, gst: '07AAACA9012M', costCentre: 'Support', reviewed: 'Yes' },
+  { date: '23 Aug 2025', description: 'Card network dispute fee', ledger: 'Kotak Mahindra', type: 'Debit', amount: -900, gst: '24AAACK3456N', costCentre: 'Finance', reviewed: 'No' },
+]
+
+const chargebackColumns: ColumnDef<ChargebackRow, any>[] = [
+  { accessorKey: 'date', header: columnHeader<ChargebackRow>('Date'), meta: { title: 'Date', lockColumn: true }, cell: ({ row }) => <PlainTextCell>{row.original.date}</PlainTextCell> },
+  { accessorKey: 'description', header: columnHeader<ChargebackRow>('Description'), meta: { title: 'Description' }, cell: ({ row }) => <PlainTextCell>{row.original.description}</PlainTextCell> },
+  { accessorKey: 'ledger', header: columnHeader<ChargebackRow>('Ledger'), meta: { title: 'Ledger' }, cell: ({ row }) => <PlainTextCell>{row.original.ledger}</PlainTextCell> },
+  { accessorKey: 'type', header: columnHeader<ChargebackRow>('Type'), meta: { title: 'Type' }, cell: ({ row }) => <PlainTextCell>{row.original.type}</PlainTextCell> },
+  { accessorKey: 'amount', header: sortableHeader<ChargebackRow>('Amount'), meta: { title: 'Amount' }, cell: ({ row }) => <AmountCell amount={row.original.amount} variant={row.original.amount < 0 ? 'debit' : 'credit'} /> },
+  { accessorKey: 'gst', header: columnHeader<ChargebackRow>('GST Registration'), meta: { title: 'GST Registration' }, cell: ({ row }) => <PlainTextCell>{row.original.gst}</PlainTextCell> },
+  { accessorKey: 'costCentre', header: columnHeader<ChargebackRow>('Cost Centre'), meta: { title: 'Cost Centre' }, cell: ({ row }) => <PlainTextCell>{row.original.costCentre}</PlainTextCell> },
+  { accessorKey: 'reviewed', header: columnHeader<ChargebackRow>('Reviewed'), meta: { title: 'Reviewed', lockColumn: true }, cell: ({ row }) => <PlainTextCell>{row.original.reviewed}</PlainTextCell> },
+]
+
+export const ColumnCustomization: Story = {
+  render: () => (
+    <Table
+      columns={chargebackColumns}
+      data={CHARGEBACK_ROWS}
+      enableSorting={false}
+      enableRowSelection
+      enableColumnResizing
+      enableColumnCustomization
+    />
+  ),
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByRole('columnheader', { name: /Ledger/ })).toBeVisible()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Customize columns' }))
+    // The panel portals out of the story root, so it's queried via `screen`.
+    const panel = await screen.findByRole('list')
+    await userEvent.click(await within(panel).findByText('Ledger'))
+
+    // Hiding a column removes its header and every matching body cell from the real grid.
+    await waitFor(() => {
+      expect(canvas.queryByRole('columnheader', { name: /Ledger/ })).not.toBeInTheDocument()
+    })
+    await expect(canvas.queryByText('HDFC Bank')).not.toBeInTheDocument()
+  },
+}
+
+/** Pinning freezes the column against the left edge of the horizontal scroll container. */
+export const ColumnPinning: Story = {
+  render: () => (
+    <div style={{ maxWidth: 520 }}>
+      <Table
+        columns={chargebackColumns}
+        data={CHARGEBACK_ROWS}
+        enableSorting={false}
+        enableColumnResizing
+        enableColumnCustomization
+      />
+    </div>
+  ),
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Customize columns' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Pin Description' }))
+
+    await waitFor(() => {
+      const header = canvas.getByRole('columnheader', { name: /Description/ })
+      expect(getComputedStyle(header).position).toBe('sticky')
     })
   },
 }
