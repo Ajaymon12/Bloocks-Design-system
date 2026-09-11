@@ -222,6 +222,30 @@ export const Pinning: Story = {
   },
 }
 
+/** The glyph names the action: an unpinned column offers "pin", a pinned one offers "unpin"
+ *  (the struck-through variant). Lucide tags each icon with a `lucide-<name>` class. */
+export const PinIconSwapsOnToggle: Story = {
+  render: () => <ControlledPanel />,
+  play: async ({ canvas, userEvent }) => {
+    const pin = canvas.getByRole('button', { name: 'Pin Ledger' })
+    await expect(pin.querySelector('.lucide-pin')).toBeInTheDocument()
+    await expect(pin.querySelector('.lucide-pin-off')).not.toBeInTheDocument()
+
+    await userEvent.click(pin)
+
+    await waitFor(() => {
+      const unpin = canvas.getByRole('button', { name: 'Unpin Ledger' })
+      expect(unpin.querySelector('.lucide-pin-off')).toBeInTheDocument()
+    })
+
+    // And back again, so the swap isn't one-way.
+    await userEvent.click(canvas.getByRole('button', { name: 'Unpin Ledger' }))
+    await waitFor(() => {
+      expect(canvas.getByRole('button', { name: 'Pin Ledger' }).querySelector('.lucide-pin')).toBeInTheDocument()
+    })
+  },
+}
+
 /** Searching hides the grips: reordering a filtered subset has no coherent meaning. */
 export const Search: Story = {
   render: () => <ControlledPanel />,

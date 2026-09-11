@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { Columns3, GripVertical, Lock, Pin, SearchX, Undo2 } from 'lucide-react'
+import { Columns3, GripVertical, Lock, Pin, PinOff, SearchX, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PanelSearch } from '@/components/ui/panel-search'
@@ -250,7 +250,11 @@ export function ColumnCustomizerPanel({
                         : 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
                     )}
                   >
-                    <Pin size={12} />
+                    {/* The glyph names the action the button performs, matching its aria-label:
+                        a pinned column offers "unpin". Presence of an icon at rest already means
+                        "pinned" (unpinned rows only reveal theirs on hover), so the struck-through
+                        pin can't be misread as the unpinned state. */}
+                    {item.pinned ? <PinOff size={12} /> : <Pin size={12} />}
                   </button>
                 )}
               </li>

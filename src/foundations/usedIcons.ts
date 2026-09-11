@@ -42,5 +42,6 @@ export const USED_ICONS: Record<string, string[]> = {
   GripVertical: ['ColumnCustomizer'],
   Lock: ['ColumnCustomizer'],
   Pin: ['ColumnCustomizer'],
+  PinOff: ['ColumnCustomizer'],
   Undo2: ['ColumnCustomizer'],
 }
