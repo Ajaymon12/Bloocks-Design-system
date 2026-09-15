@@ -185,7 +185,25 @@ export function Table<TData>({
       ...(enableRowSelection ? [SELECT_COLUMN_ID] : []),
       ...items.map((item) => item.id),
     ])
-    setColumnPinning({ left: items.filter((item) => item.pinned).map((item) => item.id), right: [] })
+
+    const pinned = items.filter((item) => item.pinned && !item.locked).map((item) => item.id)
+    // Locked columns at the head of the list are the table's anchor, and the selection checkbox
+    // sits left of everything. Both have to be frozen ahead of whatever the user pins, or pinning
+    // would slide a column in front of the one the panel shows first — the panel and the grid
+    // would then disagree about column order. Applied only when something is actually pinned, so
+    // an unpinned table keeps its natural layout and draws no freeze line.
+    const leadingLocked: string[] = []
+    for (const item of items) {
+      if (!item.locked) break
+      leadingLocked.push(item.id)
+    }
+    setColumnPinning({
+      left:
+        pinned.length === 0
+          ? []
+          : [...(enableRowSelection ? [SELECT_COLUMN_ID] : []), ...leadingLocked, ...pinned],
+      right: [],
+    })
   }
 
   function resetColumnsToDefault() {

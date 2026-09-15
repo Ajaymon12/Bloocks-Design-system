@@ -222,6 +222,66 @@ export const Pinning: Story = {
   },
 }
 
+/** Pinning lifts a column to the very top, above the other shown columns. */
+export const PinningMovesToTop: Story = {
+  render: () => <ControlledPanel />,
+  play: async ({ canvas, userEvent }) => {
+    const before = canvas.getAllByRole('listitem').map((row) => row.textContent)
+    expect(before.findIndex((label) => label?.includes('Amount'))).toBe(4)
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Pin Amount' }))
+
+    await waitFor(() => {
+      const after = canvas.getAllByRole('listitem').map((row) => row.textContent ?? '')
+      // Index 1, right under the anchored locked Date row.
+      expect(after[1]).toContain('Amount')
+    })
+
+    // Pinning a second column puts it below the first — pinned rows keep their own order.
+    await userEvent.click(canvas.getByRole('button', { name: 'Pin Type' }))
+    await waitFor(() => {
+      const after = canvas.getAllByRole('listitem').map((row) => row.textContent ?? '')
+      expect(after[1]).toContain('Amount')
+      expect(after[2]).toContain('Type')
+    })
+  },
+}
+
+/** A hidden column can't be pinned — the control is inert until the column is shown. */
+export const CannotPinAHiddenColumn: Story = {
+  render: () => <ControlledPanel />,
+  play: async ({ canvas, userEvent }) => {
+    // "GST Registration" starts hidden.
+    await expect(canvas.getByRole('checkbox', { name: 'GST Registration' })).not.toBeChecked()
+    const pin = canvas.getByRole('button', { name: 'Pin GST Registration' })
+    await expect(pin).toBeDisabled()
+
+    // Clicking it changes nothing — the browser won't dispatch a click on a disabled button.
+    await userEvent.click(pin)
+    await expect(canvas.getByRole('button', { name: 'Pin GST Registration' })).toHaveAttribute('aria-pressed', 'false')
+
+    // Showing the column enables it.
+    await userEvent.click(canvas.getByText('GST Registration'))
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Pin GST Registration' })).toBeEnabled())
+  },
+}
+
+/** Hiding a pinned column drops its pin, so no stale pin comes back when it's shown again. */
+export const HidingAPinnedColumnUnpinsIt: Story = {
+  render: () => <ControlledPanel />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Pin Ledger' }))
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Unpin Ledger' })).toBeInTheDocument())
+
+    await userEvent.click(canvas.getByText('Ledger'))
+    await waitFor(() => {
+      const pin = canvas.getByRole('button', { name: 'Pin Ledger' })
+      expect(pin).toHaveAttribute('aria-pressed', 'false')
+      expect(pin).toBeDisabled()
+    })
+  },
+}
+
 /** The glyph names the action: an unpinned column offers "pin", a pinned one offers "unpin"
  *  (the struck-through variant). Lucide tags each icon with a `lucide-<name>` class. */
 export const PinIconSwapsOnToggle: Story = {

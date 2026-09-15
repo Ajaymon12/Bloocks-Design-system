@@ -57,13 +57,24 @@ function move(items: ColumnCustomizerItem[], from: number, to: number) {
   return next
 }
 
-/** Keeps every shown column in one contiguous block, with the hidden ones below it — so ticking a
- * column on lifts it straight to the end of the shown group instead of leaving it stranded among
- * the hidden ones. Each group keeps its existing relative order (a stable partition), and locked
- * rows are anchored to their index so the structural first/last columns never drift. */
-function regroupByVisibility(items: ColumnCustomizerItem[]) {
+/** Which of the three blocks a row belongs to. Pinning implies visible, so there is no
+ * pinned-but-hidden state to represent. */
+function groupOf(item: ColumnCustomizerItem) {
+  if (!item.visible) return 'hidden'
+  return item.pinned ? 'pinned' : 'shown'
+}
+
+/** Sorts rows into three contiguous blocks — pinned, then shown, then hidden — so pinning a column
+ * lifts it to the top and ticking one on lifts it out of the hidden block. Each block keeps its
+ * existing relative order (a stable partition), and locked rows are anchored to their index so the
+ * structural first/last columns never drift. */
+function regroupRows(items: ColumnCustomizerItem[]) {
   const movable = items.filter((item) => !item.locked)
-  const grouped = [...movable.filter((item) => item.visible), ...movable.filter((item) => !item.visible)]
+  const grouped = [
+    ...movable.filter((item) => groupOf(item) === 'pinned'),
+    ...movable.filter((item) => groupOf(item) === 'shown'),
+    ...movable.filter((item) => groupOf(item) === 'hidden'),
+  ]
   let next = 0
   return items.map((item) => (item.locked ? item : grouped[next++]))
 }
@@ -90,8 +101,12 @@ export function ColumnCustomizerPanel({
   const canReorder = trimmed.length === 0
 
   function toggleVisible(id: string) {
-    const toggled = items.map((item) => (item.id === id ? { ...item, visible: !item.visible } : item))
-    onChange(regroupByVisibility(toggled))
+    const toggled = items.map((item) =>
+      // Hiding a column drops its pin too: a column you can't see can't be pinned, and leaving a
+      // stale pin behind would resurrect it the next time the column was shown.
+      item.id === id ? { ...item, visible: !item.visible, pinned: item.visible ? false : item.pinned } : item,
+    )
+    onChange(regroupRows(toggled))
     // The row physically jumps between groups, so say so rather than leaving a screen-reader user
     // to discover that the list resequenced under them.
     const item = items.find((entry) => entry.id === id)
@@ -99,9 +114,12 @@ export function ColumnCustomizerPanel({
   }
 
   function togglePinned(item: ColumnCustomizerItem) {
+    // Guard as well as disabling the control: keeps the pinned-implies-visible invariant true even
+    // if a caller drives this some other way.
+    if (!item.visible) return
     const next = !item.pinned
-    onChange(items.map((entry) => (entry.id === item.id ? { ...entry, pinned: next } : entry)))
-    setAnnouncement(`${item.label} ${next ? 'pinned' : 'unpinned'}`)
+    onChange(regroupRows(items.map((entry) => (entry.id === item.id ? { ...entry, pinned: next } : entry))))
+    setAnnouncement(`${item.label} ${next ? 'pinned, moved to the top' : 'unpinned'}`)
   }
 
   function reorder(from: number, to: number) {
@@ -111,10 +129,10 @@ export function ColumnCustomizerPanel({
     setAnnouncement(`${items[from].label} moved to position ${to + 1} of ${items.length}`)
   }
 
-  /** Reordering stays inside a visibility group, so a drag can't undo the shown/hidden grouping. */
+  /** Reordering stays inside one block, so a drag can't undo the pinned/shown/hidden grouping. */
   function canDropOn(from: number, to: number) {
     if (to < 0 || to >= items.length || from === to) return false
-    return !items[to].locked && items[to].visible === items[from].visible
+    return !items[to].locked && groupOf(items[to]) === groupOf(items[from])
   }
 
   function handleGripKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number, item: ColumnCustomizerItem) {
@@ -236,18 +254,25 @@ export function ColumnCustomizerPanel({
                 {!item.locked && (
                   <button
                     type="button"
+                    disabled={!item.visible}
                     aria-pressed={item.pinned ?? false}
                     aria-label={`${item.pinned ? 'Unpin' : 'Pin'} ${item.label}`}
+                    title={item.visible ? undefined : 'Show this column to pin it'}
                     onClick={() => togglePinned(item)}
                     className={cn(
                       ICON_BUTTON_CLASS,
-                      'cursor-pointer transition-opacity duration-150 hover:bg-[var(--color-bg-subtle)] hover:text-foreground',
+                      'transition-opacity duration-150',
                       // Secondary affordance: revealed on row hover, and on keyboard focus so it
                       // stays reachable by Tab. `opacity-0` leaves it in the a11y tree and
                       // hit-testable, unlike `hidden` — it's only visually quiet.
                       item.pinned
                         ? 'text-primary opacity-100'
                         : 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
+                      // A hidden column can't be pinned — the control still appears on hover so the
+                      // rule is discoverable, but it's inert and visibly so.
+                      item.visible
+                        ? 'cursor-pointer hover:bg-[var(--color-bg-subtle)] hover:text-foreground'
+                        : 'cursor-not-allowed opacity-0 group-hover/row:opacity-40',
                     )}
                   >
                     {/* The glyph names the action the button performs, matching its aria-label:
