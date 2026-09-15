@@ -12,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Table } from './Table'
-import { columnHeader, sortableHeader } from './columnHeader'
+import { columnHeader, sortableHeader, dateColumnHeader } from './columnHeader'
+import { DateCell } from './cells/DateCell'
 import { PlainTextCell } from './cells/PlainTextCell'
 import { SubTextCell } from './cells/SubTextCell'
 import { AmountCell } from './cells/AmountCell'
@@ -714,6 +715,99 @@ export const ColumnPinning: Story = {
     await waitFor(() => {
       const header = canvas.getByRole('columnheader', { name: /Description/ })
       expect(getComputedStyle(header).position).toBe('sticky')
+    })
+  },
+}
+
+// --- Date column: real filtering, and correct chronological sorting -------------------------
+// Values are real `Date`s rendered through `DateCell`, not pre-formatted strings. That's what
+// makes `sortingFn: 'datetime'` and the date-range filter work. Storing '22 Dec 2025' as a string
+// sorts alphabetically, which puts '9 Jan 2026' *before* it — the bug this replaces.
+
+type LedgerEntry = { postedOn: Date; narration: string; amount: number }
+
+// Pinned, not `new Date()`: the panel's presets and default month are reckoned from "today", so a
+// clock-derived value would make these assertions fail once the month rolls over.
+const LEDGER_TODAY = new Date(2026, 8, 15) // 15 Sep 2026
+
+const LEDGER_ENTRIES: LedgerEntry[] = [
+  { postedOn: new Date(2025, 11, 22), narration: 'Year-end accrual', amount: -18200 },
+  { postedOn: new Date(2026, 0, 9), narration: 'Opening balance transfer', amount: 45000 },
+  { postedOn: new Date(2026, 7, 12), narration: 'UPI settlement reversal', amount: -12400 },
+  { postedOn: new Date(2026, 8, 3), narration: 'Merchant chargeback', amount: -3250 },
+  { postedOn: new Date(2026, 8, 14), narration: 'Chargeback recovery', amount: 3250 },
+]
+
+const ledgerDateColumns: ColumnDef<LedgerEntry, any>[] = [
+  {
+    accessorKey: 'postedOn',
+    header: dateColumnHeader<LedgerEntry>('Posted on', { today: LEDGER_TODAY }),
+    sortingFn: 'datetime',
+    filterFn: 'dateRange',
+    meta: { title: 'Posted on', filterType: 'date' },
+    cell: ({ row }) => <DateCell value={row.original.postedOn} />,
+  },
+  {
+    accessorKey: 'narration',
+    header: columnHeader<LedgerEntry>('Narration'),
+    meta: { title: 'Narration' },
+    cell: ({ row }) => <PlainTextCell>{row.original.narration}</PlainTextCell>,
+  },
+  {
+    accessorKey: 'amount',
+    header: sortableHeader<LedgerEntry>('Amount'),
+    meta: { title: 'Amount' },
+    cell: ({ row }) => (
+      <AmountCell amount={row.original.amount} variant={row.original.amount < 0 ? 'debit' : 'credit'} />
+    ),
+  },
+]
+
+/** The Filter icon in the "Posted on" header is no longer a placeholder — it opens a range
+ *  calendar that actually removes rows. */
+export const DateColumnFilter: Story = {
+  render: () => <Table columns={ledgerDateColumns} data={LEDGER_ENTRIES} />,
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getAllByRole('row')).toHaveLength(6) // header + 5
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter Posted on' }))
+    // Pick a range covering only the two September 2026 entries.
+    await userEvent.click(await screen.findByRole('button', { name: /September 1st, 2026/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /September 30th, 2026/ }))
+
+    await waitFor(() => {
+      expect(canvas.getAllByRole('row')).toHaveLength(3) // header + 2
+    })
+    await expect(canvas.getByText('Merchant chargeback')).toBeVisible()
+    await expect(canvas.queryByText('Year-end accrual')).not.toBeInTheDocument()
+  },
+}
+
+/** Clearing the filter restores every row. */
+export const DateColumnFilterClears: Story = {
+  render: () => <Table columns={ledgerDateColumns} data={LEDGER_ENTRIES} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter Posted on' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Last 30 days' }))
+    await waitFor(() => expect(canvas.queryByText('Year-end accrual')).not.toBeInTheDocument())
+
+    // The panel stays open after a pick — clicking the trigger again would close it, not reopen.
+    await userEvent.click(await screen.findByRole('button', { name: 'Clear filter' }))
+    await waitFor(() => expect(canvas.getAllByRole('row')).toHaveLength(6))
+  },
+}
+
+/** The sorting fix: dates order chronologically, so Dec 2025 precedes Jan 2026. Held as display
+ *  strings, an alphabetical sort would have put '9 Jan 2026' before '22 Dec 2025'. */
+export const DatesSortChronologically: Story = {
+  render: () => <Table columns={ledgerDateColumns} data={LEDGER_ENTRIES} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Posted on' }))
+
+    await waitFor(() => {
+      const cells = canvas.getAllByRole('gridcell').filter((c) => /\d{4}$/.test(c.textContent ?? ''))
+      expect(cells[0]).toHaveTextContent('22 Dec 2025')
+      expect(cells[1]).toHaveTextContent('9 Jan 2026')
     })
   },
 }

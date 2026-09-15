@@ -3,14 +3,25 @@ import type { CSSProperties, ReactNode } from 'react'
 import type {
   Column,
   ColumnDef,
+  ColumnFiltersState,
   ColumnOrderState,
   ColumnPinningState,
+  FilterFn,
   RowData,
   RowSelectionState,
   SortingState,
   VisibilityState,
 } from '@tanstack/react-table'
-import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+import { isWithinRange } from '@/lib/date'
+import type { DateRangeValue } from '@/lib/date'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
 import { AlignLeft, MoreVertical, WrapText } from 'lucide-react'
@@ -42,7 +53,26 @@ declare module '@tanstack/react-table' {
     /** Excludes the column from the ColumnCustomizer's controls: always visible, not reorderable,
      * pin toggle disabled. Matches the Figma spec's Date / Reviewed rows. */
     lockColumn?: boolean
+    /** Makes `columnHeader(label, { filterable: true })`'s filter icon open a real filter panel.
+     * `'date'` opens a range calendar; the column's values must be `Date`s or ISO strings (use
+     * `DateCell` to render them). */
+    filterType?: 'date'
   }
+
+  /** Registers the custom filter below by name, so a column can say `filterFn: 'dateRange'` and
+   * still type-check — TanStack only knows the built-in names otherwise. */
+  interface FilterFns {
+    dateRange: FilterFn<unknown>
+  }
+}
+
+/** Inclusive, day-granular date-range filter. Registered as a named filterFn so a column can opt
+ * in with `filterFn: 'dateRange'`. */
+const dateRangeFilter: FilterFn<unknown> = (row, columnId, filterValue: DateRangeValue) => {
+  if (!filterValue?.from && !filterValue?.to) return true
+  const value = row.getValue(columnId)
+  if (value == null) return false
+  return isWithinRange(value as Date | string | number, filterValue)
 }
 
 const SELECT_COLUMN_ID = 'select'
@@ -124,6 +154,7 @@ export function Table<TData>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] })
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
   const resolvedColumns = useMemo(
     () => (enableRowSelection ? [selectColumn<TData>(), ...columns] : columns),
@@ -133,7 +164,9 @@ export function Table<TData>({
   const table = useReactTable({
     data,
     columns: resolvedColumns,
-    state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning },
+    state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning, columnFilters },
+    filterFns: { dateRange: dateRangeFilter },
+    onColumnFiltersChange: setColumnFilters,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
@@ -154,6 +187,7 @@ export function Table<TData>({
     enableColumnResizing,
     columnResizeMode: 'onChange',
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize, pageIndex: 0 } },

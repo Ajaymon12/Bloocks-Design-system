@@ -48,6 +48,8 @@ const preview: Preview = {
             'Combobox',
             'FilterDropdown',
             'FilterChip',
+            'DatePicker',
+            'DateFilter',
             'ColumnCustomizer',
           ],
           '*',

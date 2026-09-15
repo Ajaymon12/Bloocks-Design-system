@@ -53,6 +53,7 @@ export const FilterChip = forwardRef<HTMLDivElement, FilterChipProps>(function F
   const values = toArray(value)
   const isSelected = values.length > 0
   const hasClear = isSelected && showClearButton && !isDisabled
+  const showCount = selectionType === 'multiple' && values.length > 1
 
   return (
     <div
@@ -87,13 +88,14 @@ export const FilterChip = forwardRef<HTMLDivElement, FilterChipProps>(function F
             nothing visually. */}
         <span className="truncate">
           {label}
-          {isSelected && values.length === 1 ? ': ' : ''}
+          {isSelected && !showCount ? ': ' : ''}
         </span>
 
-        {/* One selection reads better spelled out than as a bare "1"; beyond that a count is
-            more compact than a list of names. */}
-        {isSelected && values.length === 1 && <span className="truncate font-semibold">{values[0]}</span>}
-        {isSelected && values.length > 1 && (
+        {/* One selection reads better spelled out than as a bare "1"; beyond that a count is more
+            compact than a list of names. Only `multiple` collapses to a count — a single-select
+            chip always names its value, however the caller shaped it. */}
+        {isSelected && !showCount && <span className="truncate font-semibold">{values.join(', ')}</span>}
+        {showCount && (
           <Badge size="sm" color="primary">
             {values.length}
           </Badge>
