@@ -71,7 +71,7 @@ export const WithError: Story = {
   play: async ({ canvas }) => {
     const [firstBox] = canvas.getAllByRole('textbox')
     await expect(firstBox).toHaveAttribute('aria-invalid', 'true')
-    await expect(getComputedStyle(firstBox).borderColor).toBe('rgb(253, 23, 23)') // --color-danger
+    await expect(getComputedStyle(firstBox).borderColor).toBe('rgb(210, 19, 19)') // --color-input-error, #d21313
   },
 }
 

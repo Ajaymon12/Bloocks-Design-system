@@ -63,7 +63,7 @@ export const ErrorState: Story = {
     const select = canvas.getByLabelText('Framework')
     await expect(select).toHaveAttribute('aria-invalid', 'true')
     const wrapper = select.parentElement as HTMLElement
-    await expect(getComputedStyle(wrapper).borderColor).toBe('rgb(253, 23, 23)') // --color-danger
+    await expect(getComputedStyle(wrapper).borderColor).toBe('rgb(210, 19, 19)') // --color-input-error, #d21313
   },
 }
 

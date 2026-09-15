@@ -29,7 +29,7 @@
   --warning: var(--color-warning);
   --warning-foreground: var(--color-text-on-primary);
   --border: var(--color-border);
-  --input: var(--color-border);
+  --input: var(--color-input-border);
   --ring: var(--color-primary);
   /* Base radius shadcn's scale derives from — matches this project's own radius-8 token. */
   --radius: var(--radius-8);
@@ -94,7 +94,47 @@
   }
 }
 
-/* Respect reduced-motion: same keyframe name, no movement or fade. */
+/*
+ * Drawer slide and overlay fade. Radix stamps data-state="open"/"closed" on dialog content and
+ * waits for the closing animation to end before unmounting, so exits animate too.
+ */
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes drawer-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Respect reduced-motion: same keyframe names, no movement or fade. */
 @media (prefers-reduced-motion: reduce) {
   @keyframes popover-in {
     from {
@@ -103,6 +143,24 @@
     }
     to {
       opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes drawer-in {
+    from {
+      transform: none;
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  @keyframes drawer-out {
+    from {
+      transform: none;
+    }
+    to {
       transform: none;
     }
   }

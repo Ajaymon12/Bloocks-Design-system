@@ -27,8 +27,8 @@ export const Default: Story = {
   args: { label: 'Full name', placeholder: 'Ada Lovelace' },
 }
 
-// The modern-SaaS focus treatment: a soft colored glow (box-shadow ring), not just a border
-// color flip — matches the Stripe/Linear-style pattern rather than the old plain-outline look.
+// Figma's focus treatment (AIA - Component Library, Input): the primary border inside a 2px
+// blue-200 ring (a box-shadow), not just a border color flip.
 export const Focused: Story = {
   args: { label: 'Focus me', placeholder: 'Click or tab in' },
   play: async ({ canvas, userEvent }) => {
@@ -65,11 +65,12 @@ export const ErrorState: Story = {
   play: async ({ canvas }) => {
     const input = canvas.getByLabelText('Email')
     await expect(input).toHaveAttribute('aria-invalid', 'true')
-    // Real proof, not just that errorText renders: the wrapper border actually turns danger-red,
-    // and the automatic validation icon actually renders (not conveyed by color alone).
+    // Real proof, not just that errorText renders: the wrapper border actually turns Figma's
+    // error red, and the message itself is shown and linked, so it isn't conveyed by color alone.
     const wrapper = input.parentElement as HTMLElement
-    await expect(getComputedStyle(wrapper).borderColor).toBe('rgb(253, 23, 23)') // --color-danger, #fd1717
-    await expect(wrapper.querySelector('svg.lucide-circle-alert')).toBeTruthy()
+    await expect(getComputedStyle(wrapper).borderColor).toBe('rgb(210, 19, 19)') // --color-input-error, #d21313
+    await expect(canvas.getByText('Enter a valid email address.')).toBeVisible()
+    await expect(input).toHaveAccessibleDescription('Enter a valid email address.')
   },
 }
 
@@ -83,7 +84,7 @@ export const SuccessState: Story = {
     const input = canvas.getByLabelText('Username')
     const wrapper = input.parentElement as HTMLElement
     await expect(getComputedStyle(wrapper).borderColor).toBe('rgb(3, 160, 0)') // --color-success, #03a000
-    await expect(wrapper.querySelector('svg.lucide-circle-check')).toBeTruthy()
+    await expect(canvas.getByText('Username is available.')).toBeVisible()
   },
 }
 

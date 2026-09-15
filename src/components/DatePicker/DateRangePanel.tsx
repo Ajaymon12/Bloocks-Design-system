@@ -1,104 +1,113 @@
-import { Calendar } from '@/components/ui/calendar'
+import { useState } from 'react'
+import { Button } from '@/components/Button/Button'
 import { cn } from '@/lib/utils'
-import { DEFAULT_PRESETS, formatDateRange, matchPreset } from '@/lib/date'
+import { isSameRange } from '@/lib/date'
 import type { DatePreset, DateRangeValue } from '@/lib/date'
+import { DateRangeFields } from './DateRangeFields'
+
+// Figma: AIA - Component Library, "Date range" (node 667:11575). The fields themselves live in
+// `DateRangeFields`; this panel adds the draft and the Reset/Apply pair for a standalone popover.
+//
+// Unlike FilterDropdown, this panel stages changes behind Apply. A range needs two clicks and a
+// typed date is incomplete until its last digit, so committing live would filter on half-entered
+// input. Every surface that hosts the panel (DateFilter, DatePicker, the Table column filter)
+// shares this behaviour.
 
 export type DateRangePanelProps = {
   mode?: 'single' | 'range'
+  /** The committed value. The panel edits a draft copy and reports it only on Apply. */
   value?: DateRangeValue
-  /** Fires on every pick — live, matching FilterDropdown and ColumnCustomizer. No Apply step. */
-  onChange: (value: DateRangeValue) => void
-  /** Sidebar shortcuts. Pass `[]` to hide the sidebar entirely. */
+  onApply: (value: DateRangeValue) => void
+  /** Preset dropdown options (range mode). A "Custom" option is always appended. */
   presets?: DatePreset[]
-  /** "Today" for preset resolution and calendar highlighting. Injectable so stories and tests can
-   * pin a fixed date instead of flaking across midnight or between timezones. */
+  /** Label above the preset dropdown, e.g. "Show transactions for". */
+  presetsLabel?: string
+  /** Shows a Reset button beside Apply. On by default; Figma's frame omits it, but product needs a
+   * way to clear the draft from inside the panel. */
+  showReset?: boolean
+  /** What Reset restores the draft to. Defaults to no date. */
+  resetValue?: DateRangeValue
+  /** "Today" for presets and the grid's today marker. Injectable so stories and tests can pin a
+   * fixed date instead of flaking across midnight or between timezones. */
   today?: Date
-  numberOfMonths?: number
   minDate?: Date
   maxDate?: Date
+  /** 0 = Sunday … 6 = Saturday. Sunday by default, per Figma. */
+  weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
   className?: string
 }
+
+const EMPTY: DateRangeValue = {}
+
+// Figma's footer buttons are 24px tall: label-3 type with 4px vertical padding, tighter than
+// Button's `sm` (8px).
+const COMPACT_BUTTON = 'py-[var(--space-4)]'
 
 export function DateRangePanel({
   mode = 'range',
   value,
-  onChange,
-  presets = DEFAULT_PRESETS,
-  today = new Date(),
-  numberOfMonths = mode === 'range' ? 2 : 1,
+  onApply,
+  presets,
+  presetsLabel,
+  showReset = true,
+  resetValue = EMPTY,
+  today,
   minDate,
   maxDate,
+  weekStartsOn,
   className,
 }: DateRangePanelProps) {
-  const activePreset = mode === 'range' ? matchPreset(value, presets, today) : null
-  const showPresets = mode === 'range' && presets.length > 0
+  const isRange = mode === 'range'
+  const committed = value ?? EMPTY
 
-  const disabled = [
-    ...(minDate ? [{ before: minDate }] : []),
-    ...(maxDate ? [{ after: maxDate }] : []),
-  ]
+  // The panel mounts fresh every time its popover opens, so seeding state from `value` here is
+  // enough — there's no stale draft to reconcile with a value that changed while it was closed.
+  const [draft, setDraft] = useState<DateRangeValue>(committed)
+  const [isValid, setIsValid] = useState(true)
+
+  // Single mode compares the one date only, so re-picking the same day doesn't count as a change.
+  const matches = (a: DateRangeValue, b: DateRangeValue) =>
+    isRange ? isSameRange(a, b) : isSameRange({ from: a.from }, { from: b.from })
+  const canApply = isValid && !matches(draft, committed)
+  const canReset = !matches(draft, resetValue)
+
+  function reset() {
+    setDraft(isRange ? resetValue : { from: resetValue.from, to: resetValue.from })
+    setIsValid(true)
+  }
+
+  function apply() {
+    if (!canApply) return
+    onApply(isRange ? draft : { from: draft.from, to: draft.from })
+  }
 
   return (
-    <div className={cn('flex font-[family-name:var(--font-family-primary)]', className)}>
-      {showPresets && (
-        <div className="flex w-[136px] shrink-0 flex-col gap-[var(--space-2)] border-r border-[var(--color-table-border)] p-[var(--space-8)]">
-          {presets.map((preset) => {
-            const isActive = preset.label === activePreset
-            return (
-              <button
-                key={preset.label}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => onChange(preset.getValue(today))}
-                className={cn(
-                  'cursor-pointer rounded-[var(--radius-6)] border-0 px-[var(--space-8)] py-[var(--space-4)] text-left',
-                  'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)]',
-                  isActive
-                    ? 'bg-[var(--color-primary-subtle)] font-medium text-primary'
-                    : 'bg-transparent text-foreground hover:bg-[var(--color-bg-subtle)]',
-                )}
-              >
-                {preset.label}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="flex min-w-0 flex-col">
-        {mode === 'range' ? (
-          <Calendar
-            mode="range"
-            required={false}
-            numberOfMonths={numberOfMonths}
-            defaultMonth={value?.from ?? today}
-            selected={value?.from ? { from: value.from, to: value.to } : undefined}
-            onSelect={(next) => onChange({ from: next?.from, to: next?.to })}
-            disabled={disabled}
-          />
-        ) : (
-          <Calendar
-            mode="single"
-            required={false}
-            numberOfMonths={numberOfMonths}
-            defaultMonth={value?.from ?? today}
-            selected={value?.from}
-            onSelect={(next) => onChange({ from: next ?? undefined, to: next ?? undefined })}
-            disabled={disabled}
-          />
-        )}
-
-        {/* Echoes back what's actually selected — with presets in play it isn't obvious from the
-            grid alone which dates "Last 30 days" resolved to. */}
-        <div className="flex min-h-[var(--space-32)] items-center border-t border-[var(--color-table-border)] px-[var(--space-12)] py-[var(--space-8)]">
-          <span
-            data-testid="date-range-summary"
-            className="text-[length:var(--text-body-3-size)] text-muted-foreground"
-          >
-            {value?.from ? formatDateRange(value) : 'No date selected'}
-          </span>
-        </div>
-      </div>
-    </div>
+    <DateRangeFields
+      mode={mode}
+      value={draft}
+      onChange={(next, meta) => {
+        setDraft(next)
+        setIsValid(meta.isValid)
+      }}
+      presets={presets}
+      presetsLabel={presetsLabel}
+      today={today}
+      minDate={minDate}
+      maxDate={maxDate}
+      weekStartsOn={weekStartsOn}
+      className={className}
+      footerEnd={
+        <>
+          {showReset && (
+            <Button variant="ghost" size="sm" isDestructive isDisabled={!canReset} onClick={reset} className={COMPACT_BUTTON}>
+              Reset
+            </Button>
+          )}
+          <Button size="sm" isDisabled={!canApply} onClick={apply} className={cn(COMPACT_BUTTON, 'w-[78px]')}>
+            Apply
+          </Button>
+        </>
+      }
+    />
   )
 }

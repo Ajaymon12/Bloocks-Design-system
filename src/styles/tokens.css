@@ -86,6 +86,24 @@
   --color-surface-subtle: var(--palette-neutral-50);
   --color-border: var(--palette-neutral-200);
   --color-border-strong: var(--palette-neutral-300);
+  /*
+   * Form fields — Figma: AIA - Component Library, Input (node 8:135). A brand-tinted outline at
+   * rest, one blue step darker on hover, a 2px blue-200 ring around the primary border on focus,
+   * and red-600 for errors (Figma's status-error — a step deeper than --color-danger, which buttons
+   * keep using).
+   */
+  --color-input-border: var(--palette-blue-200);
+  --color-input-border-hover: var(--palette-blue-300);
+  --color-input-focus-ring: var(--palette-blue-200);
+  --color-input-error: var(--palette-red-600);
+  --shadow-input: 0 1px 1px rgba(0, 0, 0, 0.07);
+  /* Quietest field outline — the date range panel's dropdown and date fields, per design review. */
+  --color-border-subtle: var(--palette-neutral-50);
+  /* Selected and hovered items in a neutral list (the All filters sidebar and option rows). The
+   * palette has no step between neutral-0 and neutral-50, so both are tints of neutral-50 toward
+   * the surface: selected ≈ #f4f4f4, hover lighter still ≈ #f9f9f9, keeping the two distinguishable. */
+  --color-surface-selected: color-mix(in srgb, var(--palette-neutral-50) 70%, var(--palette-neutral-0));
+  --color-surface-hover: color-mix(in srgb, var(--palette-neutral-50) 40%, var(--palette-neutral-0));
   /* Table grid lines — lighter than the general --color-border, per design feedback. */
   --color-table-border: var(--palette-neutral-50);
   --color-table-header-bg: var(--palette-blue-50);
@@ -93,6 +111,26 @@
   /* Floating-panel (Popover/Combobox/FilterDropdown) border — Figma's own dev-mode export for
    * these panels; doesn't match any existing semantic token (checked --color-primary-hover/-active). */
   --color-popover-border: var(--palette-blue-200);
+  /*
+   * Navigation — Figma: Karbon - AI Accountant, "Top and sidebar" (node 21645:59876).
+   * The top bar is dark in both themes (as in Blade), so its tokens are not redefined for dark mode.
+   * --color-topnav-border is Figma's HSL(226°, 25%, 36%): it sits between blue-900 and blue-800 and
+   * has no palette step. --color-topnav-org-avatar is Figma's default org avatar teal, also off-palette.
+   */
+  --color-topnav-bg: var(--palette-blue-950);
+  --color-topnav-surface: var(--palette-blue-900);
+  --color-topnav-border: #455073;
+  --color-topnav-text: var(--palette-neutral-50);
+  --color-topnav-avatar-text: var(--palette-amber-50);
+  --color-topnav-org-avatar: #12a594;
+  /* The vertical rail behind SideNav sub-items, and the corner marker on a collapsed group. */
+  --color-sidenav-rail: var(--palette-blue-100);
+  --color-sidenav-group-indicator: var(--palette-blue-200);
+  /* Drawer — the page dim behind it, its body ground (Figma's #fbfbfe: blue-50 halfway to white),
+   * and a soft shadow on its leading edge. */
+  --color-overlay: color-mix(in srgb, var(--palette-neutral-900) 16%, transparent);
+  --color-drawer-bg: color-mix(in srgb, var(--palette-blue-50) 50%, var(--palette-neutral-0));
+  --shadow-drawer: -8px 0 24px -8px rgba(33, 38, 60, 0.16);
   /* First real elevation value in the system (Elevation.mdx is still awaiting a full Figma
    * scale) — a two-layer, brand-tinted shadow for floating panels. */
   --shadow-popover: 0 1px 2px 0 rgba(33, 38, 60, 0.06), 0 8px 24px -4px rgba(33, 38, 60, 0.14);
@@ -300,10 +338,23 @@
     --color-surface-subtle: var(--palette-neutral-800);
     --color-border: var(--palette-neutral-700);
     --color-border-strong: var(--palette-neutral-600);
+    --color-input-border: var(--palette-blue-800);
+    --color-input-border-hover: var(--palette-blue-700);
+    --color-input-focus-ring: var(--palette-blue-800);
+    --color-input-error: var(--palette-red-400);
+    --shadow-input: 0 1px 1px rgba(0, 0, 0, 0.4);
+    --color-border-subtle: var(--palette-neutral-800);
+    --color-surface-selected: var(--palette-neutral-800);
+    --color-surface-hover: color-mix(in srgb, var(--palette-neutral-800) 50%, var(--palette-neutral-900));
     --color-table-border: var(--palette-neutral-700);
     --color-table-header-bg: var(--palette-blue-950);
     --color-table-row-hover: var(--palette-blue-900);
     --color-popover-border: var(--palette-blue-800);
+    --color-sidenav-rail: var(--palette-blue-800);
+    --color-sidenav-group-indicator: var(--palette-blue-700);
+    --color-overlay: color-mix(in srgb, var(--palette-neutral-1000) 55%, transparent);
+    --color-drawer-bg: var(--palette-neutral-950);
+    --shadow-drawer: -8px 0 24px -8px rgba(0, 0, 0, 0.6);
     --shadow-popover: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.55);
     --color-text: var(--palette-neutral-50);
     --color-text-secondary: var(--palette-neutral-400);
@@ -349,10 +400,23 @@
   --color-surface-subtle: var(--palette-neutral-800);
   --color-border: var(--palette-neutral-700);
   --color-border-strong: var(--palette-neutral-600);
+  --color-input-border: var(--palette-blue-800);
+  --color-input-border-hover: var(--palette-blue-700);
+  --color-input-focus-ring: var(--palette-blue-800);
+  --color-input-error: var(--palette-red-400);
+  --shadow-input: 0 1px 1px rgba(0, 0, 0, 0.4);
+  --color-border-subtle: var(--palette-neutral-800);
+  --color-surface-selected: var(--palette-neutral-800);
+  --color-surface-hover: color-mix(in srgb, var(--palette-neutral-800) 50%, var(--palette-neutral-900));
   --color-table-border: var(--palette-neutral-700);
   --color-table-header-bg: var(--palette-blue-950);
   --color-table-row-hover: var(--palette-blue-900);
   --color-popover-border: var(--palette-blue-800);
+  --color-sidenav-rail: var(--palette-blue-800);
+  --color-sidenav-group-indicator: var(--palette-blue-700);
+  --color-overlay: color-mix(in srgb, var(--palette-neutral-1000) 55%, transparent);
+  --color-drawer-bg: var(--palette-neutral-950);
+  --shadow-drawer: -8px 0 24px -8px rgba(0, 0, 0, 0.6);
   --shadow-popover: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.55);
   --color-text: var(--palette-neutral-50);
   --color-text-secondary: var(--palette-neutral-400);

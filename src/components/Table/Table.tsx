@@ -59,10 +59,11 @@ declare module '@tanstack/react-table' {
     filterType?: 'date'
   }
 
-  /** Registers the custom filter below by name, so a column can say `filterFn: 'dateRange'` and
-   * still type-check — TanStack only knows the built-in names otherwise. */
+  /** Registers the custom filters below by name, so a column can say `filterFn: 'dateRange'` or
+   * `filterFn: 'anyOf'` and still type-check — TanStack only knows the built-in names otherwise. */
   interface FilterFns {
     dateRange: FilterFn<unknown>
+    anyOf: FilterFn<unknown>
   }
 }
 
@@ -75,6 +76,20 @@ const dateRangeFilter: FilterFn<unknown> = (row, columnId, filterValue: DateRang
   return isWithinRange(value as Date | string | number, filterValue)
 }
 
+/** "Is any of" for enum / entity_ref columns (spec §6.1): the row matches when its value — or any
+ * entry of an array value — is one of the selected option values. Exact matches only; TanStack's
+ * built-in `arrIncludesSome` does substring matching on scalar cells, which would let "current"
+ * match a "current_account" value. */
+const anyOfFilter: FilterFn<unknown> = (row, columnId, filterValue: string[]) => {
+  if (!Array.isArray(filterValue) || filterValue.length === 0) return true
+  const value = row.getValue(columnId)
+  if (value == null) return false
+  return Array.isArray(value)
+    ? value.some((entry) => filterValue.includes(String(entry)))
+    : filterValue.includes(String(value))
+}
+anyOfFilter.autoRemove = (value) => !Array.isArray(value) || value.length === 0
+
 const SELECT_COLUMN_ID = 'select'
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'])
 
@@ -83,6 +98,16 @@ export type TableSize = 'sm' | 'md'
 const CELL_TEXT_CLASS: Record<TableSize, string> = {
   sm: 'text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] tracking-[var(--text-body-4-letter-spacing)]',
   md: 'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] tracking-[var(--text-body-3-letter-spacing)]',
+}
+
+/** What `renderBulkActions` receives — enough to drive a BulkActionBar. */
+export type TableBulkActionsContext<TData> = {
+  selectedRows: TData[]
+  selectedCount: number
+  /** Rows matching the current filters, across every page (spec §7.6 "Select all N matching"). */
+  totalCount: number
+  selectAll: () => void
+  clearSelection: () => void
 }
 
 export type TableProps<TData> = {
@@ -107,6 +132,16 @@ export type TableProps<TData> = {
    * show/hide, reorder, and pin-left any column. Use `meta.title` to give a column a readable name
    * in the panel and `meta.lockColumn` to exempt it from being hidden, moved or unpinned. */
   enableColumnCustomization?: boolean
+  /** Controlled column filters. When provided the table stops keeping its own, so filters set from
+   * outside (a FilterBar) and from inside (a column header's date filter) stay in one place. */
+  columnFilters?: ColumnFiltersState
+  onColumnFiltersChange?: (next: ColumnFiltersState) => void
+  /** Content for the left of the toolbar row above the grid, e.g. `<FilterBar />`. The Columns
+   * button, when enabled, stays on the right. */
+  toolbar?: ReactNode
+  /** Renders a floating bar (typically `<BulkActionBar />`) pinned to the bottom of the table while
+   * any row is selected. Use with `enableRowSelection`. */
+  renderBulkActions?: (context: TableBulkActionsContext<TData>) => ReactNode
   className?: string
 }
 
@@ -125,6 +160,10 @@ export function Table<TData>({
   size = 'md',
   enableColumnResizing = false,
   enableColumnCustomization = false,
+  columnFilters: columnFiltersProp,
+  onColumnFiltersChange,
+  toolbar,
+  renderBulkActions,
   className,
 }: TableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
@@ -154,7 +193,8 @@ export function Table<TData>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] })
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [internalColumnFilters, setInternalColumnFilters] = useState<ColumnFiltersState>([])
+  const columnFilters = columnFiltersProp ?? internalColumnFilters
 
   const resolvedColumns = useMemo(
     () => (enableRowSelection ? [selectColumn<TData>(), ...columns] : columns),
@@ -165,8 +205,12 @@ export function Table<TData>({
     data,
     columns: resolvedColumns,
     state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning, columnFilters },
-    filterFns: { dateRange: dateRangeFilter },
-    onColumnFiltersChange: setColumnFilters,
+    filterFns: { dateRange: dateRangeFilter, anyOf: anyOfFilter },
+    onColumnFiltersChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(columnFilters) : updater
+      if (columnFiltersProp === undefined) setInternalColumnFilters(next)
+      onColumnFiltersChange?.(next)
+    },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
@@ -296,6 +340,9 @@ export function Table<TData>({
       if (!NAV_KEYS.has(event.key)) return
       const active = document.activeElement
       if (!containerRef.current?.contains(active)) return
+      // The toolbar (filter chips, Columns) and the bulk action bar live inside the container but
+      // aren't part of the grid: arrow keys there belong to their own controls, not cell navigation.
+      if (active?.closest('[data-table-toolbar], [data-table-bulk-actions]')) return
 
       const current = active?.closest<HTMLTableCellElement>('td[data-row][data-col]')
       const row = Number(current?.dataset.row ?? 0)
@@ -335,14 +382,18 @@ export function Table<TData>({
 
   return (
     <div ref={containerRef} className={cn('flex flex-col gap-[var(--space-8)]', className)}>
-      {enableColumnCustomization && (
-        <div className="flex items-center justify-end">
-          <ColumnCustomizer
-            items={customizerItems}
-            onChange={applyCustomizerItems}
-            onResetWidth={enableColumnResizing ? () => table.resetColumnSizing() : undefined}
-            onResetDefault={resetColumnsToDefault}
-          />
+      {(toolbar || enableColumnCustomization) && (
+        <div data-table-toolbar="" className="flex items-start justify-between gap-[var(--space-8)]">
+          {/* Always rendered, even empty, so the Columns button keeps its place on the right. */}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-[var(--space-8)]">{toolbar}</div>
+          {enableColumnCustomization && (
+            <ColumnCustomizer
+              items={customizerItems}
+              onChange={applyCustomizerItems}
+              onResetWidth={enableColumnResizing ? () => table.resetColumnSizing() : undefined}
+              onResetDefault={resetColumnsToDefault}
+            />
+          )}
         </div>
       )}
       <TableRoot
@@ -511,6 +562,20 @@ export function Table<TData>({
         </TableBody>
       </TableRoot>
       <Pagination table={table} />
+      {renderBulkActions && Object.values(rowSelection).some(Boolean) && (
+        // Sticky to the bottom of the viewport while the table is on screen, centred over it.
+        <div data-table-bulk-actions="" className="pointer-events-none sticky bottom-[var(--space-16)] z-20 flex justify-center">
+          <div className="pointer-events-auto max-w-full">
+            {renderBulkActions({
+              selectedRows: table.getSelectedRowModel().flatRows.map((row) => row.original),
+              selectedCount: table.getSelectedRowModel().flatRows.length,
+              totalCount: table.getFilteredRowModel().rows.length,
+              selectAll: () => table.toggleAllRowsSelected(true),
+              clearSelection: () => table.resetRowSelection(),
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -190,7 +190,7 @@ export function FilterDropdown({
             <button
               type="button"
               onClick={reset}
-              className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--text-body-4-size)] font-medium text-primary hover:underline"
+              className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--text-body-4-size)] font-medium text-destructive hover:underline"
             >
               Reset
             </button>
