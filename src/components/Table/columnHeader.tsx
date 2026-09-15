@@ -67,26 +67,17 @@ export function columnHeader<TData>(label: string, options: ColumnHeaderOptions 
                 <Filter size={12} />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-0">
+            <PopoverContent align="start" className="w-auto border-[var(--color-border)] p-0">
+              {/* Clearing is the panel's own Reset followed by Apply — no separate footer. */}
               <DateRangePanel
                 mode="range"
                 today={today}
                 value={filterValue}
-                onChange={(next) => column.setFilterValue(next.from || next.to ? next : undefined)}
+                onApply={(next) => {
+                  column.setFilterValue(next.from || next.to ? next : undefined)
+                  setOpen(false)
+                }}
               />
-              <div className="flex justify-end border-t border-[var(--color-table-border)] px-[var(--space-12)] py-[var(--space-8)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    column.setFilterValue(undefined)
-                    setOpen(false)
-                  }}
-                  disabled={!isFiltered}
-                  className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--text-body-4-size)] font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
-                >
-                  Clear filter
-                </button>
-              </div>
             </PopoverContent>
           </Popover>
         )}

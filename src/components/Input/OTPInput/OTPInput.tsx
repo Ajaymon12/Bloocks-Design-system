@@ -63,12 +63,13 @@ const BOX_SIZE: Record<OTPInputSize, string> = {
 
 const VALIDATION_RING: Record<OTPInputValidationState, string> = {
   none: '',
-  error: 'border-destructive ring-[3px] ring-destructive/10',
-  success: 'border-success ring-[3px] ring-success/10',
+  error: 'border-[var(--color-input-error)]',
+  success: 'border-success',
 }
 // Plain conditional class (not `focus:`) — see BaseInput.tsx for why: Tailwind v4 wraps variant
 // pseudo-classes in `:where()`, zeroing their specificity against plain utility classes here.
-const FOCUS_RING = 'border-[var(--color-primary)] ring-[3px] ring-primary/15'
+// Matches the Figma field focus: the primary border inside a 2px blue-200 ring.
+const FOCUS_RING = 'border-[var(--color-primary)] ring-2 ring-[var(--color-input-focus-ring)]'
 
 const VALIDATION_ICON: Record<OTPInputValidationState, typeof CircleAlert | null> = {
   none: null,
@@ -207,24 +208,31 @@ export const OTPInput = forwardRef<(HTMLInputElement | null)[], OTPInputProps>(
     }
 
     return (
-      <div className={cn('flex flex-col gap-[var(--space-4)] font-[family-name:var(--font-family-primary)]', className)}>
+      <div
+        className={cn(
+          'flex flex-col gap-[var(--space-4)] font-[family-name:var(--font-family-primary)]',
+          // Figma dims the whole field — label, boxes and hint — when disabled.
+          isDisabled && 'opacity-50',
+          className,
+        )}
+      >
         {label && (
           <div className="flex items-center justify-between gap-[var(--space-8)]">
             <div className="flex items-center gap-[var(--space-4)]">
               <span
                 id={`${groupId}-label`}
                 className={cn(
-                  'text-[length:var(--text-label-2-size)] leading-[var(--text-label-2-line-height)] tracking-[var(--text-label-2-letter-spacing)] font-medium text-foreground',
+                  'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] font-medium text-[var(--color-text-secondary)]',
                   hideLabelText && 'sr-only',
                 )}
               >
-                {label}
+                {/* Figma puts the required asterisk before the label. */}
                 {necessityIndicator === 'required' && (
-                  <span className="text-[length:var(--text-label-3-size)] font-normal text-destructive" aria-hidden="true">
-                    {' '}
+                  <span className="text-[var(--color-input-error)]" aria-hidden="true">
                     *
                   </span>
                 )}
+                {label}
                 {necessityIndicator === 'optional' && (
                   <span className="text-[length:var(--text-label-3-size)] font-normal text-muted-foreground"> (optional)</span>
                 )}
@@ -264,14 +272,17 @@ export const OTPInput = forwardRef<(HTMLInputElement | null)[], OTPInputProps>(
                 aria-invalid={resolvedValidationState === 'error' || undefined}
                 aria-describedby={hintText ? hintId : undefined}
                 className={cn(
-                  'box-border rounded-[var(--radius-8)] border bg-card text-center font-medium text-foreground shadow-xs outline-none',
+                  '[--border:var(--field-border,var(--color-input-border))]',
+                  'box-border rounded-[var(--radius-6)] border bg-card text-center font-medium text-foreground shadow-[var(--shadow-input)] outline-none',
                   'transition-[border-color,background-color,box-shadow] duration-150 ease-in-out',
                   BOX_SIZE[size],
                   VALIDATION_RING[resolvedValidationState],
                   resolvedValidationState === 'none' && focusedIndex === index && FOCUS_RING,
                   isDisabled
-                    ? 'bg-muted opacity-50 cursor-not-allowed shadow-none'
-                    : focusedIndex !== index && 'hover:border-[var(--color-border-strong)]',
+                    ? 'cursor-not-allowed'
+                    : resolvedValidationState === 'none' &&
+                        focusedIndex !== index &&
+                        'hover:border-[var(--color-input-border-hover)]',
                 )}
               />
             )
@@ -282,8 +293,8 @@ export const OTPInput = forwardRef<(HTMLInputElement | null)[], OTPInputProps>(
           <p
             id={hintId}
             className={cn(
-              'm-0 flex items-center gap-[var(--space-4)] text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] text-muted-foreground',
-              resolvedValidationState === 'error' && 'text-destructive',
+              'm-0 flex items-center gap-[var(--space-4)] text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] text-muted-foreground',
+              resolvedValidationState === 'error' && 'text-[var(--color-input-error)]',
               resolvedValidationState === 'success' && 'text-success',
             )}
           >

@@ -1,0 +1,118 @@
+import { Meta, Unstyled } from '@storybook/addon-docs/blocks'
+import { IntroHeader } from './Introduction'
+
+<Meta title="Introduction" />
+
+<Unstyled>
+  <IntroHeader />
+</Unstyled>
+
+## What is Bloocks?
+
+Bloocks is the design system behind the **AI Accountant** products. It holds the design tokens,
+foundations and React components used to build its screens, and every value in it comes from the
+[AIA Component Library](https://www.figma.com/design/j6l3kRxBQRNGbf3cwR9NZq/AIA---Component-Library?node-id=54-178)
+in Figma.
+
+## 🚧 Status
+
+* Bloocks is under **active development**. Components are added as product screens need them.
+* Every component in the sidebar has a docs page with live stories, controls and a props table.
+* Some token pages are still waiting on Figma. [Elevation](?path=/docs/token-elevation--docs) has one shadow so far, for floating panels.
+* Use the **Theme** switch in the toolbar to see any page in light or dark.
+
+## 🔗 Links
+
+* [Figma: AIA Component Library](https://www.figma.com/design/j6l3kRxBQRNGbf3cwR9NZq/AIA---Component-Library?node-id=54-178) (palette and components)
+* [Figma: Karbon variables](https://www.figma.com/design/9sL5Vrc6a3NzoLve2o9zgr/Karbon---AI-Accountant?node-id=17097-54020&view=variables) (typography, border and space)
+* [GitHub](https://github.com/Ajaymon12/Bloocks-Design-system)
+* [Colors](?path=/docs/foundations-colors--docs) · [Icons](?path=/docs/foundations-icons--docs) · [Theme tokens](?path=/docs/token-theme--docs)
+
+## ✨ Features
+
+* **Light and dark themes** from one set of semantic tokens, with no theme logic in components
+* **Tokens synced from Figma** and rendered live from `src/styles/tokens.css`, so the docs can't drift
+* **Accessible building blocks** on [Radix](https://www.radix-ui.com/primitives) primitives, checked with Storybook's a11y addon
+* **Tailwind CSS 4** styling with typed variants from `class-variance-authority`
+* **shadcn/ui compatible**. Its variables map onto Bloocks tokens in `src/styles/tailwind.css`
+* **Data-heavy screens covered** with a TanStack table, column customizer, filters and date ranges
+
+## 📦 What's inside
+
+### Foundations
+
+[Colors](?path=/docs/foundations-colors--docs) and [Icons](?path=/docs/foundations-icons--docs). Icons come from `lucide-react`,
+and `src/foundations/usedIcons.ts` tracks which ones are in use.
+
+### Tokens
+
+[Typography](?path=/docs/token-typography--docs) · [Elevation](?path=/docs/token-elevation--docs) ·
+[Border](?path=/docs/token-border--docs) · [Spacing](?path=/docs/token-spacing--docs) ·
+[Breakpoints](?path=/docs/token-breakpoints--docs) · [Motion](?path=/docs/token-motion--docs) ·
+[Theme](?path=/docs/token-theme--docs)
+
+### Components
+
+* **Actions:** [Button](?path=/docs/components-button--docs), [ButtonGroup](?path=/docs/components-buttongroup--docs)
+* **Navigation and status:** [TopNav](?path=/docs/components-topnav--docs), [SideNav](?path=/docs/components-sidenav--docs), [Breadcrumb](?path=/docs/components-breadcrumb--docs), [Badge](?path=/docs/components-badge--docs)
+* **Form inputs:** [TextInput](?path=/docs/components-input-textinput--docs), [Select](?path=/docs/components-input-select--docs), [OTPInput](?path=/docs/components-input-otpinput--docs), [Checkbox](?path=/docs/components-checkbox-checkbox--docs), [CheckboxGroup](?path=/docs/components-checkbox-checkboxgroup--docs), [Combobox](?path=/docs/components-combobox--docs), [DatePicker](?path=/docs/components-datepicker--docs)
+* **Data and filtering:** [Table](?path=/docs/components-table--docs), [ColumnCustomizer](?path=/docs/components-columncustomizer--docs), [BulkActionBar](?path=/docs/components-bulkactionbar--docs), [FilterChip](?path=/docs/components-filterchip--docs), [FilterDropdown](?path=/docs/components-filterdropdown--docs), [DateFilter](?path=/docs/components-datefilter--docs), [FilterBar](?path=/docs/components-filters-filterbar--docs), [AllFiltersPanel](?path=/docs/components-filters-allfilterspanel--docs)
+* **Overlays:** [Drawer](?path=/docs/components-drawer--docs)
+
+## 🎨 How tokens are layered
+
+Tokens come in three layers, and each layer only uses the one below it.
+
+```
+--palette-blue-500          1. Palette: raw brand values from Figma
+        ↓
+--color-primary             2. Semantic: a role, swapped per theme
+        ↓
+bg-[var(--color-primary)]   3. Component: only uses semantic tokens
+```
+
+> 🎯 Components use semantic tokens such as `--color-primary` and `--color-text`, never palette tokens such as
+> `--palette-blue-500`. That is what makes dark mode work without changing component code.
+
+## 🧩 Using Bloocks
+
+Import the styles once at your app's entry. They include Tailwind and every token.
+
+```tsx
+import './styles/tailwind.css'
+```
+
+Then import components from their folder:
+
+```tsx
+import { Button } from '@/components/Button'
+import { Badge } from '@/components/Badge'
+
+<Button variant="outline">Export</Button>
+<Badge color="positive">Reconciled</Badge>
+```
+
+## 📝 Adding a component
+
+* Create a folder under `src/components` with the component, its variants, a barrel file and stories:
+
+```
+src/components/Button/
+├── Button.tsx            the component
+├── buttonVariants.ts     cva variants, styled with semantic tokens
+├── index.ts              public exports
+└── Button.stories.tsx    tags: ['autodocs'] creates the docs page
+```
+
+* Style only with semantic tokens. If no token fits, add one to `tokens.css` for **both** themes.
+* Add the component to `storySort` in `.storybook/preview.tsx` so it shows up in the right place in the sidebar.
+* If it uses a new icon, add it to `src/foundations/usedIcons.ts`.
+* Add a link to it in the **What's inside** list on this page.
+* Run `npm run lint` and check the a11y panel before opening a pull request.
+
+> 🗒 Run Storybook locally with `npm run storybook`. Build a static copy with `npm run build-storybook`.
+
+## ⌛️ Current state
+
+For the full list of what's available, see the sidebar on the left. Found a gap, or need a component
+that isn't here yet? Open an [issue on GitHub](https://github.com/Ajaymon12/Bloocks-Design-system/issues/new).

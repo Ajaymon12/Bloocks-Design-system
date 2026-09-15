@@ -36,15 +36,31 @@ export const Default: Story = {
   },
 }
 
-/** Picking a single day closes the panel immediately — the choice is complete on one click. */
+/** Click a day, then Apply — the same staged model as the date filter. */
 export const PickASingleDate: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Invoice date' }))
     await userEvent.click(await screen.findByRole('button', { name: /September 22nd, 2026/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => {
       expect(canvas.getByRole('button', { name: 'Invoice date' })).toHaveTextContent('22 Sep 2026')
+    })
+  },
+}
+
+/** In single mode the panel shows one DD / MM / YYYY field instead of From and To. */
+export const TypeASingleDate: Story = {
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Invoice date' }))
+    await userEvent.click(await screen.findByRole('textbox', { name: 'Date, day' }))
+    await userEvent.keyboard('05102026')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => {
+      expect(canvas.getByRole('button', { name: 'Invoice date' })).toHaveTextContent('5 Oct 2026')
     })
   },
 }

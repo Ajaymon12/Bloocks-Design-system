@@ -312,8 +312,9 @@ function FooterButton({ onClick, children }: { onClick: () => void; children: st
         'border-0 bg-transparent px-[var(--space-4)] py-[var(--space-4)]',
         // nowrap: at the panel's width "Reset Default" otherwise breaks across two lines and
         // knocks the two buttons out of alignment with each other.
-        'whitespace-nowrap text-[length:var(--text-label-2-size)] leading-[var(--text-label-2-line-height)] font-medium text-muted-foreground',
-        'hover:bg-[var(--color-bg-subtle)] hover:text-foreground',
+        // Red, like every Reset in the system — it discards the user's arrangement.
+        'whitespace-nowrap text-[length:var(--text-label-2-size)] leading-[var(--text-label-2-line-height)] font-medium text-destructive',
+        'hover:bg-[var(--color-danger-subtle)]',
       )}
     >
       <Undo2 size={12} aria-hidden="true" />

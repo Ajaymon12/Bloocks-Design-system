@@ -2,7 +2,7 @@ import { forwardRef, useId, useRef, useState } from 'react'
 import type { ChangeEvent, FocusEvent, KeyboardEvent, ClipboardEvent, ReactNode, Ref } from 'react'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { CircleAlert, CircleCheck, Info, Loader2, X } from 'lucide-react'
+import { Info, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 function mergeRefs<T>(...refs: (Ref<T> | undefined)[]) {
@@ -83,31 +83,27 @@ export type BaseInputProps = {
 
 const SIZE_PADDING: Record<BaseInputSize, string> = {
   sm: 'py-[var(--space-4)] px-[var(--space-8)]',
-  md: 'py-[var(--space-8)] px-[var(--space-12)]',
+  // Figma (AIA - Component Library, Input, node 8:135): a 34px field — 6 + 20 (body-3 line) + 6 +
+  // 2 (border) — with 16px side padding.
+  md: 'py-[6px] px-[var(--space-16)]',
 }
 
 const SIZE_TEXT: Record<BaseInputSize, string> = {
   sm: 'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)]',
-  md: 'text-[length:var(--text-body-2-size)] leading-[var(--text-body-2-line-height)]',
+  md: 'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)]',
 }
 
-// Modern-SaaS focus treatment: a soft colored glow (Stripe/Linear-style), not just a border-color
-// flip. Error/success stay visible at rest (not just on focus) since the point is to be seen.
+// Figma: errors are a red-600 border with no glow; focus is the primary border inside a 2px
+// blue-200 ring. Error/success stay visible at rest, not just on focus.
 // Applied as plain conditional classes (JS-tracked focus state below), not the `focus-within:`
 // variant — Tailwind v4 wraps variant pseudo-classes in `:where()`, zeroing their specificity, so
 // they silently lost to any plain utility class with real specificity regardless of source order.
 const VALIDATION_RING: Record<BaseInputValidationState, string> = {
   none: '',
-  error: 'border-destructive ring-[3px] ring-destructive/10',
-  success: 'border-success ring-[3px] ring-success/10',
+  error: 'border-[var(--color-input-error)]',
+  success: 'border-success',
 }
-const FOCUS_RING = 'border-[var(--color-primary)] ring-[3px] ring-primary/15'
-
-const VALIDATION_ICON: Record<BaseInputValidationState, typeof CircleAlert | null> = {
-  none: null,
-  error: CircleAlert,
-  success: CircleCheck,
-}
+const FOCUS_RING = 'border-[var(--color-primary)] ring-2 ring-[var(--color-input-focus-ring)]'
 
 export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, BaseInputProps>(
   (
@@ -187,6 +183,8 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
     const fieldClasses = cn(
       'flex flex-col gap-[var(--space-4)] font-[family-name:var(--font-family-primary)]',
       labelPosition === 'left' && 'flex-row items-baseline gap-[var(--space-12)]',
+      // Figma dims the whole field — label, box and hint — when disabled.
+      isDisabled && 'opacity-50',
       className,
     )
 
@@ -197,14 +195,17 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
       // below is JS-tracked (see isFocused) rather than the `focus-within:` variant: Tailwind v4
       // wraps variant pseudo-classes in `:where()`, zeroing their specificity, so a plain
       // `border-border` utility class would otherwise beat it outright even while matching.
-      'flex items-center gap-[var(--space-8)] w-full box-border bg-card border rounded-[var(--radius-8)] shadow-xs',
+      // Setting the reset's `--border` variable (not a border color) keeps that precedence while
+      // giving fields their lighter outline; a parent can quiet it further via `--field-border`.
+      '[--border:var(--field-border,var(--color-input-border))]',
+      'flex items-center gap-[var(--space-8)] w-full box-border bg-card border rounded-[var(--radius-6)] shadow-[var(--shadow-input)]',
       'transition-[border-color,background-color,box-shadow] duration-150 ease-in-out',
       SIZE_PADDING[size],
       VALIDATION_RING[resolvedValidationState],
       resolvedValidationState === 'none' && isFocused && FOCUS_RING,
       isDisabled
-        ? 'bg-muted opacity-50 cursor-not-allowed shadow-none'
-        : !isFocused && 'hover:border-[var(--color-border-strong)]',
+        ? 'cursor-not-allowed'
+        : resolvedValidationState === 'none' && !isFocused && 'hover:border-[var(--color-input-border-hover)]',
     )
 
     const sharedProps = {
@@ -253,11 +254,9 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
         <input {...sharedProps} ref={mergeRefs(ref, innerRef) as Ref<HTMLInputElement>} type={type} />
       )
 
-    const ValidationIcon = VALIDATION_ICON[resolvedValidationState]
-
-    // Priority for the trailing icon slot: loading spinner > clear button > caller's trailingIcon
-    // > automatic validation icon (so an error/success is never conveyed by color alone).
-    // `trailingButton` (e.g. a password show/hide toggle) is a separate slot and always shown.
+    // Priority for the trailing icon slot: loading spinner > clear button > caller's trailingIcon.
+    // Validation isn't shown as an icon (Figma has none); the hint text below spells it out, so it
+    // is never conveyed by color alone. `trailingButton` (e.g. a password toggle) is always shown.
     const trailingSlot = isLoading ? (
       <span className="inline-flex shrink-0 text-muted-foreground" aria-hidden="true">
         <Loader2 size={16} className="animate-[spin_0.6s_linear_infinite]" />
@@ -269,25 +268,13 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
         onClick={handleClear}
         aria-label="Clear input"
       >
-        <X size={14} />
+        <X size={16} />
       </button>
     ) : trailingIcon ? (
       <span className="inline-flex shrink-0 text-muted-foreground" aria-hidden="true">
         {trailingIcon}
       </span>
-    ) : (
-      ValidationIcon && (
-        <span
-          className={cn(
-            'inline-flex shrink-0',
-            resolvedValidationState === 'error' ? 'text-destructive' : 'text-success',
-          )}
-          aria-hidden="true"
-        >
-          <ValidationIcon size={16} />
-        </span>
-      )
-    )
+    ) : null
 
     return (
       <div className={fieldClasses}>
@@ -296,17 +283,17 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
             <label
               htmlFor={inputId}
               className={cn(
-                'text-[length:var(--text-label-2-size)] leading-[var(--text-label-2-line-height)] tracking-[var(--text-label-2-letter-spacing)] font-medium text-foreground',
+                'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] font-medium text-[var(--color-text-secondary)]',
                 hideLabelText && 'sr-only',
               )}
             >
-              {label}
+              {/* Figma puts the required asterisk before the label. */}
               {necessityIndicator === 'required' && (
-                <span className="text-[length:var(--text-label-3-size)] font-normal text-destructive" aria-hidden="true">
-                  {' '}
+                <span className="text-[var(--color-input-error)]" aria-hidden="true">
                   *
                 </span>
               )}
+              {label}
               {necessityIndicator === 'optional' && (
                 <span className="text-[length:var(--text-label-3-size)] font-normal text-muted-foreground"> (optional)</span>
               )}
@@ -323,7 +310,7 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
                   onFocus={() => setHintOpen(true)}
                   onBlur={() => setHintOpen(false)}
                 >
-                  <Info size={14} />
+                  <Info size={10} />
                 </button>
                 {hintOpen && (
                   <span
@@ -340,7 +327,7 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
 
         <div className={wrapperClasses}>
           {prefix && (
-            <span className="shrink-0 text-[length:var(--text-body-2-size)] text-muted-foreground whitespace-nowrap">
+            <span className="shrink-0 text-[length:var(--text-body-3-size)] text-muted-foreground whitespace-nowrap">
               {prefix}
             </span>
           )}
@@ -352,7 +339,7 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
           {control}
           {trailingSlot}
           {suffix && (
-            <span className="shrink-0 text-[length:var(--text-body-2-size)] text-muted-foreground whitespace-nowrap">
+            <span className="shrink-0 text-[length:var(--text-body-3-size)] text-muted-foreground whitespace-nowrap">
               {suffix}
             </span>
           )}
@@ -364,8 +351,8 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
             {hintText && (
               <p
                 className={cn(
-                  'm-0 text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] text-muted-foreground',
-                  resolvedValidationState === 'error' && 'text-destructive',
+                  'm-0 text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] text-muted-foreground',
+                  resolvedValidationState === 'error' && 'text-[var(--color-input-error)]',
                   resolvedValidationState === 'success' && 'text-success',
                 )}
               >
@@ -373,7 +360,7 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
               </p>
             )}
             {maxCharacters && (
-              <span className="shrink-0 text-[length:var(--text-body-3-size)] text-muted-foreground">
+              <span className="shrink-0 text-[length:var(--text-body-4-size)] text-muted-foreground">
                 {currentLength}/{maxCharacters}
               </span>
             )}

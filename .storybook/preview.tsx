@@ -1,5 +1,15 @@
 import type { Preview } from '@storybook/react-vite'
+import { addons } from 'storybook/preview-api'
+import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events'
 import '../src/styles/tailwind.css'
+
+// The decorator below only runs when a story renders, so MDX pages with no stories (Introduction,
+// Token/Theme) never got data-theme. Following the globals on the channel covers those pages too.
+const applyTheme = ({ globals }: { globals: Record<string, unknown> }) => {
+  document.documentElement.setAttribute('data-theme', (globals.theme as string | undefined) ?? 'light')
+}
+addons.getChannel().on(SET_GLOBALS, applyTheme)
+addons.getChannel().on(GLOBALS_UPDATED, applyTheme)
 
 const preview: Preview = {
   parameters: {
@@ -20,6 +30,7 @@ const preview: Preview = {
     options: {
       storySort: {
         order: [
+          'Introduction',
           'Foundations',
           ['Colors', 'Icons'],
           'Token',
@@ -29,6 +40,9 @@ const preview: Preview = {
             'Button',
             'ButtonGroup',
             'Breadcrumb',
+            'TopNav',
+            'SideNav',
+            'Drawer',
             'Badge',
             'Input',
             [
@@ -50,7 +64,10 @@ const preview: Preview = {
             'FilterChip',
             'DatePicker',
             'DateFilter',
+            'Filters',
+            ['FilterBar', 'AllFiltersPanel'],
             'ColumnCustomizer',
+            'BulkActionBar',
           ],
           '*',
         ],

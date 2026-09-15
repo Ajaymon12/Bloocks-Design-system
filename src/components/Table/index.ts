@@ -1,5 +1,5 @@
 export { Table } from './Table'
-export type { TableProps } from './Table'
+export type { TableProps, TableBulkActionsContext } from './Table'
 export { columnHeader, sortableHeader, dateColumnHeader } from './columnHeader'
 export type { ColumnHeaderOptions } from './columnHeader'
 export { DateCell } from './cells/DateCell'

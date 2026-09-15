@@ -21,6 +21,7 @@ export function Calendar({
   classNames,
   showOutsideDays,
   numberOfMonths = 1,
+  weekStartsOn = 1,
   ...props
 }: CalendarProps) {
   // Outside days help a single month feel like a continuous grid, but with two months side by side
@@ -32,6 +33,8 @@ export function Calendar({
     <DayPicker
       numberOfMonths={numberOfMonths}
       showOutsideDays={resolvedShowOutsideDays}
+      // Monday-first by default, matching how Indian and European accounting calendars are read.
+      weekStartsOn={weekStartsOn}
       className={cn('font-[family-name:var(--font-family-primary)]', className)}
       classNames={{
         root: 'p-[var(--space-12)]',

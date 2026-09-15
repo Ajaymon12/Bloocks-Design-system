@@ -10,9 +10,14 @@ export type DateFilterProps = {
   label: string
   value?: DateRangeValue
   defaultValue?: DateRangeValue
-  /** Fires on every pick — filtering is live, there is no Apply step. */
+  /** Fires when the user presses Apply, or clears the chip with its ×. Picking dates in the panel
+   * doesn't fire it — a range isn't final until both ends are chosen. */
   onChange?: (value: DateRangeValue) => void
   presets?: DatePreset[]
+  /** Label above the panel's preset dropdown, e.g. "Show transactions for". */
+  presetsLabel?: string
+  /** What the panel's Reset restores. Defaults to no date. */
+  resetValue?: DateRangeValue
   /** Injectable "today" so stories and tests can pin a fixed date. */
   today?: Date
   /** `'compact'` shows a matched preset's name ("Last 30 days"); `'default'` always shows the
@@ -22,6 +27,7 @@ export type DateFilterProps = {
   showClearButton?: boolean
   minDate?: Date
   maxDate?: Date
+  weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
   isDisabled?: boolean
   accessibilityLabel?: string
   className?: string
@@ -35,11 +41,14 @@ export function DateFilter({
   defaultValue,
   onChange,
   presets = DEFAULT_PRESETS,
+  presetsLabel,
+  resetValue,
   today = new Date(),
   displayFormat = 'compact',
   showClearButton = true,
   minDate,
   maxDate,
+  weekStartsOn,
   isDisabled = false,
   accessibilityLabel,
   className,
@@ -71,15 +80,21 @@ export function DateFilter({
         />
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="w-auto p-0">
+      <PopoverContent align="start" className="w-auto border-[var(--color-border)] p-0">
         <DateRangePanel
           mode="range"
           value={selected}
-          onChange={commit}
+          onApply={(next) => {
+            commit(next)
+            setOpen(false)
+          }}
           presets={presets}
+          presetsLabel={presetsLabel}
+          resetValue={resetValue}
           today={today}
           minDate={minDate}
           maxDate={maxDate}
+          weekStartsOn={weekStartsOn}
         />
       </PopoverContent>
     </Popover>

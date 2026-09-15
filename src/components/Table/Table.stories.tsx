@@ -774,6 +774,7 @@ export const DateColumnFilter: Story = {
     // Pick a range covering only the two September 2026 entries.
     await userEvent.click(await screen.findByRole('button', { name: /September 1st, 2026/ }))
     await userEvent.click(await screen.findByRole('button', { name: /September 30th, 2026/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => {
       expect(canvas.getAllByRole('row')).toHaveLength(3) // header + 2
@@ -788,11 +789,14 @@ export const DateColumnFilterClears: Story = {
   render: () => <Table columns={ledgerDateColumns} data={LEDGER_ENTRIES} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Filter Posted on' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Last 30 days' }))
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Date range' }), 'Last 30 days')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(canvas.queryByText('Year-end accrual')).not.toBeInTheDocument())
 
-    // The panel stays open after a pick — clicking the trigger again would close it, not reopen.
-    await userEvent.click(await screen.findByRole('button', { name: 'Clear filter' }))
+    // Apply closed the panel, so reopen it: Reset clears the draft, and Apply commits that.
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter Posted on' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(canvas.getAllByRole('row')).toHaveLength(6))
   },
 }
