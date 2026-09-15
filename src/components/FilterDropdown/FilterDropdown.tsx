@@ -1,12 +1,12 @@
 import { useState } from 'react'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { ChevronDown, SearchX } from 'lucide-react'
+import { SearchX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PanelSearch } from '@/components/ui/panel-search'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/Badge'
+import { FilterChip } from '@/components/FilterChip'
 
 export type FilterDropdownOption = { value: string; label: string; disabled?: boolean }
 export type FilterDropdownGroup = { label: string; options: FilterDropdownOption[] }
@@ -92,37 +92,17 @@ export function FilterDropdown({
       }}
     >
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={isDisabled}
+        {/* The trigger is the shared FilterChip, so this and any other filter surface (menu, date
+            picker) present one consistent control. Its clear (×) resets without opening the panel. */}
+        <FilterChip
+          label={triggerLabel}
+          value={selectedLabels}
+          selectionType={mode === 'single' ? 'single' : 'multiple'}
+          onClearButtonClick={reset}
+          isDisabled={isDisabled}
           aria-label={accessibilityLabel}
-          className={cn(
-            'group inline-flex max-w-[280px] items-center gap-[var(--space-8)] rounded-[var(--radius-8)] border bg-card',
-            'px-[var(--space-12)] py-[var(--space-4)] cursor-pointer',
-            'text-[length:var(--text-label-3-size)] leading-[var(--text-label-3-line-height)] font-medium',
-            'transition-[border-color,background-color] duration-150 ease-in-out',
-            selected.length > 0
-              ? 'border-[var(--color-popover-border)] bg-[var(--color-primary-subtle)] text-primary'
-              : 'border-border text-foreground hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-subtle)]',
-            isDisabled && 'opacity-50 cursor-not-allowed',
-            className,
-          )}
-        >
-          {/* A single selection reads better spelled out than as a bare count. */}
-          <span className="truncate">
-            {selected.length === 1 ? `${triggerLabel}: ${selectedLabels[0]}` : triggerLabel}
-          </span>
-          {selected.length > 1 && (
-            <Badge size="sm" color="primary">
-              {selected.length}
-            </Badge>
-          )}
-          <ChevronDown
-            size={14}
-            aria-hidden="true"
-            className={cn('shrink-0 transition-transform duration-150', open && 'rotate-180')}
-          />
-        </button>
+          className={className}
+        />
       </PopoverTrigger>
 
       <PopoverContent className="w-[248px] p-0">

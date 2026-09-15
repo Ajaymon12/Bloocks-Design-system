@@ -47,6 +47,7 @@ const preview: Preview = {
             'Table',
             'Combobox',
             'FilterDropdown',
+            'FilterChip',
             'ColumnCustomizer',
           ],
           '*',

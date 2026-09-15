@@ -2,7 +2,7 @@
 // and where. Keep this in sync when a component starts or stops using an icon — the
 // Foundations → Icons gallery reads it to badge icons as "in use".
 export const USED_ICONS: Record<string, string[]> = {
-  ChevronDown: ['Breadcrumb', 'ButtonGroup', 'Select', 'Table', 'Combobox', 'FilterDropdown'],
+  ChevronDown: ['Breadcrumb', 'ButtonGroup', 'Select', 'Table', 'Combobox', 'FilterDropdown', 'FilterChip'],
   ChevronLeft: ['Breadcrumb', 'Table'],
   ChevronRight: ['Table'],
   ChevronsLeft: ['Table'],
@@ -20,7 +20,7 @@ export const USED_ICONS: Record<string, string[]> = {
   Italic: ['ButtonGroup'],
   Underline: ['ButtonGroup'],
   Mail: ['TextInput'],
-  X: ['BaseInput', 'Select', 'Combobox', 'FilterDropdown', 'ColumnCustomizer'],
+  X: ['BaseInput', 'Select', 'Combobox', 'FilterDropdown', 'ColumnCustomizer', 'FilterChip'],
   CreditCard: ['TextInput'],
   CircleAlert: ['BaseInput', 'Select', 'OTPInput'],
   CircleCheck: ['BaseInput', 'Select', 'OTPInput', 'Combobox'],
