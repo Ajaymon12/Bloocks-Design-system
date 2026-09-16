@@ -34,6 +34,8 @@ export const USED_ICONS: Record<string, string[]> = {
   RefreshCw: ['Table'],
   CloudOff: ['Table'],
   CloudAlert: ['Table'],
+  Landmark: ['Table'],
+  Sparkles: ['Table'],
   Check: ['Table', 'Checkbox', 'ColumnCustomizer'],
   Minus: ['Table', 'Checkbox'],
   WrapText: ['Table'],

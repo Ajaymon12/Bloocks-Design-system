@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DateRangePanel } from '@/components/DatePicker'
 import type { DateRangeValue } from '@/lib/date'
+import type { CellAlign } from './cells/cellVariants'
 
 export type ColumnHeaderOptions = {
   sortable?: boolean
@@ -18,6 +19,10 @@ export type ColumnHeaderOptions = {
    * fixed date in tests (otherwise they break when the month rolls over) or in apps that reckon
    * against a books-closing date rather than today. */
   today?: Date
+  /** Overrides the column's `meta.align` for the header only. Usually left unset — `meta.align`
+   * already aligns the header and body together, which is what you want for e.g. an amount
+   * column. */
+  align?: CellAlign
 }
 
 const headerButtonClasses =
@@ -28,7 +33,7 @@ const headerButtonClasses =
  * The "more column options" kebab (Wrap Text / Clip Text, etc.) is a separate, real menu rendered
  * by `Table` itself for any column with `meta: { textWrap: true }` — not part of this function. */
 export function columnHeader<TData>(label: string, options: ColumnHeaderOptions = {}) {
-  const { sortable = false, filterable = false, today } = options
+  const { sortable = false, filterable = false, today, align: alignOption } = options
 
   return function ColumnHeader({ column }: HeaderContext<TData, unknown>) {
     const [open, setOpen] = useState(false)
@@ -39,8 +44,14 @@ export function columnHeader<TData>(label: string, options: ColumnHeaderOptions 
     const filterValue = column.getFilterValue() as DateRangeValue | undefined
     const isFiltered = Boolean(filterValue?.from || filterValue?.to)
 
+    // 'start' keeps today's behaviour — label left, filter icon pushed to the far right via
+    // justify-between. 'center'/'end' have no natural "far side" to push a lone filter icon to,
+    // so the whole label+sort+filter cluster is grouped and justified as one instead.
+    const align = alignOption ?? column.columnDef.meta?.align ?? 'start'
+    const justify = align === 'end' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-between'
+
     return (
-      <div className="flex items-center justify-between gap-[var(--space-8)]">
+      <div className={cn('flex items-center gap-[var(--space-8)]', justify)}>
         {sortable ? (
           <button
             type="button"

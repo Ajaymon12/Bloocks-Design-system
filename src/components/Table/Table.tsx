@@ -32,6 +32,10 @@ import { ColumnCustomizer } from '@/components/ColumnCustomizer'
 import type { ColumnCustomizerItem } from '@/components/ColumnCustomizer'
 import { cn } from '@/lib/utils'
 import { Pagination } from './Pagination'
+import { CellDefaultsContext } from './cells/cellContext'
+import type { CellDefaults } from './cells/cellContext'
+import { CELL_TEXT_ALIGN } from './cells/cellVariants'
+import type { CellAlign } from './cells/cellVariants'
 
 // TanStack's own documented pattern for extending column `meta` with app-specific fields.
 declare module '@tanstack/react-table' {
@@ -57,6 +61,20 @@ declare module '@tanstack/react-table' {
      * `'date'` opens a range calendar; the column's values must be `Date`s or ISO strings (use
      * `DateCell` to render them). */
     filterType?: 'date'
+    /** Aligns the header and every body cell of this column. `AmountCell`/`ActionsCell` default
+     * their own `align` to `'end'`, but the header only follows when the column itself also
+     * declares this — so an amount or actions column should set `align: 'end'` here. Use
+     * `'center'` for e.g. a row-number column. A cell's own `align` prop wins over this. */
+    align?: CellAlign
+    /** Column-wide placeholder shown, muted, for a null/undefined/`''` cell value. A cell's own
+     * `empty` prop wins over this. */
+    empty?: ReactNode
+    /** Extra classes on just this column's body cells — the header-only twin is `headerClassName`. */
+    cellClassName?: string
+    /** Body-cell content truncates to one line by default (`true`); set `false` to let this
+     * column's cells wrap freely without needing the user-facing Wrap Text menu (`textWrap`
+     * below, which overrides this while active). A cell's own `truncate` prop wins over this. */
+    truncate?: boolean
   }
 
   /** Registers the custom filters below by name, so a column can say `filterFn: 'dateRange'` or
@@ -95,9 +113,11 @@ const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Ho
 
 export type TableSize = 'sm' | 'md'
 
+// Figma: Karbon - AI Accountant, Table (node 24028:1090) — body cells are 12px. 'sm' steps down
+// one further, to caption-1, for tables that need to fit even more on screen.
 const CELL_TEXT_CLASS: Record<TableSize, string> = {
-  sm: 'text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] tracking-[var(--text-body-4-letter-spacing)]',
-  md: 'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] tracking-[var(--text-body-3-letter-spacing)]',
+  sm: 'text-[length:var(--text-caption-1-size)] leading-[var(--text-caption-1-line-height)] tracking-[var(--text-caption-1-letter-spacing)]',
+  md: 'text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] tracking-[var(--text-body-4-letter-spacing)]',
 }
 
 /** What `renderBulkActions` receives — enough to drive a BulkActionBar. */
@@ -120,8 +140,8 @@ export type TableProps<TData> = {
   enableSorting?: boolean
   pageSize?: number
   emptyState?: ReactNode
-  /** Body cell text size — `'sm'` is 12px (`--text-body-4`), `'md'` is 14px (`--text-body-3`,
-   * default). Header text stays 12px either way (`--text-label-3`, already the smallest step). */
+  /** Body cell text size — `'sm'` is 10px (`--text-caption-1`), `'md'` is 12px (`--text-body-4`,
+   * default, matching Figma). Header text stays 12px either way (`--text-label-3`). */
   size?: TableSize
   /** Lets every column be resized by dragging its right edge, except the row-selection checkbox
    * column and any column def with `enableResizing: false` (set that on an Actions column, for
@@ -380,6 +400,21 @@ export function Table<TData>({
     return () => document.removeEventListener('keydown', handleKeyDown, true)
   }, [rows.length, colCount])
 
+  // One shared defaults object per column — computed once per render here, rather than a fresh
+  // object literal at each <td> below, so every cell in the same column gets the same
+  // CellDefaultsContext value reference across re-renders that don't touch column defs or `size`
+  // (row selection, sorting, …). Keyed on `resolvedColumns`/`size`, not `table` (whose reference
+  // isn't guaranteed stable across every render, unlike the props that actually determine this).
+  const cellDefaultsByColumn = useMemo(() => {
+    const map = new Map<string, CellDefaults>()
+    for (const column of table.getAllLeafColumns()) {
+      const columnMeta = column.columnDef.meta
+      map.set(column.id, { align: columnMeta?.align, size, truncate: columnMeta?.truncate, empty: columnMeta?.empty })
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedColumns, size])
+
   return (
     <div ref={containerRef} className={cn('flex flex-col gap-[var(--space-8)]', className)}>
       {(toolbar || enableColumnCustomization) && (
@@ -403,7 +438,7 @@ export function Table<TData>({
       >
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="hover:bg-transparent">
+            <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}
@@ -420,6 +455,7 @@ export function Table<TData>({
                     'relative',
                     header.column.id === SELECT_COLUMN_ID && !enableColumnResizing && 'w-10',
                     header.column.columnDef.meta?.width,
+                    CELL_TEXT_ALIGN[header.column.columnDef.meta?.align ?? 'start'],
                     header.column.columnDef.meta?.headerClassName,
                     pinnedBorderClass(header.column),
                   )}
@@ -491,7 +527,7 @@ export function Table<TData>({
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
-            <TableRow className="hover:bg-transparent">
+            <TableRow>
               <TableCell
                 colSpan={colCount}
                 className={cn('text-center text-muted-foreground py-[var(--space-32)]', CELL_TEXT_CLASS[size])}
@@ -504,10 +540,7 @@ export function Table<TData>({
               <TableRow
                 key={row.id}
                 role="row"
-                className={cn(
-                  'hover:bg-[var(--color-table-row-hover)]',
-                  row.getIsSelected() && 'bg-[var(--color-primary-subtle)]',
-                )}
+                className={cn(row.getIsSelected() && 'bg-[var(--color-primary-subtle)]')}
               >
                 {row.getVisibleCells().map((cell, colIndex) => {
                   const canWrap = cell.column.columnDef.meta?.textWrap
@@ -542,6 +575,17 @@ export function Table<TData>({
                         // bg-inherit picks up the row's hover/selected colour; TableRow's base
                         // bg-card keeps scrolled content from showing through when unstyled.
                         cell.column.getIsPinned() === 'left' && 'bg-inherit',
+                        // The table highlights the single cell under the pointer — not its row or
+                        // column. After bg-inherit on purpose: a pinned cell inherits the row's
+                        // background and the tint has to win over it. A selected row keeps its own
+                        // colour, so selection stays legible while the pointer crosses it.
+                        !row.getIsSelected() && 'hover:bg-[var(--color-table-cell-hover)]',
+                        // Aligns raw string/number cell content directly; a flex-based cell
+                        // (PlainTextCell, AmountCell, …) positions its own content via CELL_JUSTIFY
+                        // instead — text-align has no effect on a flex child's placement, so the
+                        // two never fight even when both apply to the same <td>.
+                        CELL_TEXT_ALIGN[cell.column.columnDef.meta?.align ?? 'start'],
+                        cell.column.columnDef.meta?.cellClassName,
                         pinnedBorderClass(cell.column),
                         isClipped && 'overflow-hidden text-ellipsis',
                         // Cell content components (PlainTextCell, etc.) often carry their own
@@ -552,7 +596,9 @@ export function Table<TData>({
                           'whitespace-normal break-words [&_.truncate]:whitespace-normal [&_.truncate]:overflow-visible [&_.truncate]:text-clip [&_.truncate]:break-words',
                       )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      <CellDefaultsContext.Provider value={cellDefaultsByColumn.get(cell.column.id) ?? {}}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </CellDefaultsContext.Provider>
                     </TableCell>
                   )
                 })}

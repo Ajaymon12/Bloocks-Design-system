@@ -1,38 +1,35 @@
 import type { ReactNode } from 'react'
-// Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
-// available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCellProps } from './cellContext'
 import type { CellBaseProps } from './cellVariants'
 import { CELL_DISABLED_CLASS, CELL_ICON_SLOT, CELL_JUSTIFY, CELL_TONE_CLASS, isCellValueEmpty } from './cellVariants'
 
-export type PlainTextCellProps = CellBaseProps & {
+export type CellProps = CellBaseProps & {
   children?: ReactNode
-  /** @deprecated Use `leadingIcon`. */
-  icon?: ReactNode
-  /** Reveals a pencil icon button on row hover (the row `<tr>` carries `group`, see ui/table.tsx),
-   * or on keyboard focus of the button itself. */
-  editable?: boolean
-  onEditClick?: () => void
 }
 
-export function PlainTextCell({
+/**
+ * The plain cell every other cell (PlainTextCell, AmountCell, StatusCell, …) is built from the
+ * same vocabulary as, and the direct escape hatch for content none of them cover — a one-off
+ * tone on otherwise plain text: `<Cell tone="negative">3 Transactions</Cell>`, or a column-wide
+ * empty-value placeholder with nothing else to say: `<Cell empty="Not Mapped">{value}</Cell>`.
+ *
+ * Resolves align/tone/size/truncate/empty as own prop > column `meta` > default — see
+ * `useCellProps` in `cellContext.ts`.
+ */
+export function Cell({
   children,
-  icon,
-  leadingIcon = icon,
-  trailingIcon,
-  editable = false,
-  onEditClick,
   align,
   tone,
   size,
   truncate,
   empty,
+  leadingIcon,
+  trailingIcon,
   isDisabled,
   tooltip,
   className,
-}: PlainTextCellProps) {
+}: CellProps) {
   const resolved = useCellProps({ align, tone, size, truncate, empty })
   const isEmpty = isCellValueEmpty(children)
 
@@ -64,17 +61,6 @@ export function PlainTextCell({
         <span className={cn(CELL_ICON_SLOT[resolved.size], 'text-muted-foreground')} aria-hidden="true">
           {trailingIcon}
         </span>
-      )}
-      {editable && !isEmpty && (
-        <button
-          type="button"
-          disabled={isDisabled}
-          className="inline-flex items-center justify-center shrink-0 p-[var(--space-2)] border-0 bg-transparent text-muted-foreground cursor-pointer opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:text-foreground disabled:pointer-events-none"
-          onClick={onEditClick}
-          aria-label="Edit"
-        >
-          <Pencil size={12} />
-        </button>
       )}
     </div>
   )
