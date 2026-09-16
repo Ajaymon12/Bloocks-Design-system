@@ -3,7 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { expect, screen, waitFor, within } from 'storybook/test'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { Check, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Check, MoreHorizontal, Trash2, Upload } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +24,10 @@ import { ActionsCell } from './cells/ActionsCell'
 import { AvatarCell } from './cells/AvatarCell'
 import { LinkCell } from './cells/LinkCell'
 import { ProgressBarCell } from './cells/ProgressBarCell'
-import { EmptyCell } from './cells/EmptyCell'
 import { DropdownCell } from './cells/DropdownCell'
 import { InputCell } from './cells/InputCell'
+import { NumberCell } from './cells/NumberCell'
+import { Cell } from './cells/Cell'
 
 // Figma: AIA - Component Library, Table
 // https://www.figma.com/design/j6l3kRxBQRNGbf3cwR9NZq/AIA---Component-Library
@@ -62,23 +63,50 @@ export const BasicTable: Story = {
   },
 }
 
+/** Hovering tints the single cell under the pointer — not its row, and not its column. */
+export const CellHover: Story = {
+  render: () => <Table columns={basicColumns} data={PEOPLE} enableSorting={false} />,
+  play: async ({ canvas }) => {
+    const grid = canvas.getByRole('grid')
+    const cell = (row: number, col: number) =>
+      grid.querySelector(`td[data-row="${row}"][data-col="${col}"]`) as HTMLElement
+
+    // Real CSS :hover isn't triggerable via synthetic events even in real-browser Vitest mode
+    // (Chromium only updates :hover from genuine pointer input), so this checks the styling hook —
+    // every body cell carries the tint on its own :hover, and nothing tints a whole row or column.
+    // The visual result is confirmed manually.
+    await expect(cell(0, 1).className).toContain('hover:bg-[var(--color-table-cell-hover)]')
+    await expect(cell(2, 0).className).toContain('hover:bg-[var(--color-table-cell-hover)]')
+    const row = cell(0, 0).closest('tr') as HTMLElement
+    await expect(row.className).not.toContain('hover:bg-')
+  },
+}
+
+// Figma: Karbon - AI Accountant, Table (node 24028:1090) — body cells are 12px; 'sm' steps down
+// one further for tables that need to fit even more on screen.
 export const Sizes: Story = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <section>
         <h3 style={{ margin: '0 0 12px', color: 'var(--color-text)', fontFamily: 'var(--font-family-primary)' }}>
-          sm (12px)
+          sm (10px)
         </h3>
         <Table columns={basicColumns} data={PEOPLE} enableSorting={false} size="sm" />
       </section>
       <section>
         <h3 style={{ margin: '0 0 12px', color: 'var(--color-text)', fontFamily: 'var(--font-family-primary)' }}>
-          md (14px, default)
+          md (12px, default)
         </h3>
         <Table columns={basicColumns} data={PEOPLE} enableSorting={false} size="md" />
       </section>
     </div>
   ),
+  play: async ({ canvas }) => {
+    const cells = canvas.getAllByRole('gridcell')
+    // Two tables of 3 rows × 2 cols each: sm's cells come first (rendered first in the DOM).
+    await expect(getComputedStyle(cells[0]).fontSize).toBe('10px')
+    await expect(getComputedStyle(cells[6]).fontSize).toBe('12px')
+  },
 }
 
 type Voice = { type: string; account: string }
@@ -166,7 +194,12 @@ const STATUS_COLOR = { Paid: 'positive', Unpaid: 'negative', 'Partially Paid': '
 
 const statusColumns: ColumnDef<Invoice, any>[] = [
   { accessorKey: 'customer', header: 'Customer', cell: ({ row }) => <PlainTextCell>{row.original.customer}</PlainTextCell> },
-  { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <AmountCell amount={row.original.amount} /> },
+  {
+    accessorKey: 'amount',
+    header: 'Amount',
+    meta: { align: 'end' },
+    cell: ({ row }) => <AmountCell amount={row.original.amount} />,
+  },
   {
     accessorKey: 'status',
     header: 'Document Status',
@@ -256,6 +289,7 @@ const salesColumns: ColumnDef<SalesVoucher, any>[] = [
   {
     accessorKey: 'amount',
     header: columnHeader('Amount', { sortable: true, filterable: true }),
+    meta: { align: 'end' },
     cell: ({ row }) => <AmountCell amount={row.original.amount} />,
     size: 130,
   },
@@ -280,7 +314,7 @@ const salesColumns: ColumnDef<SalesVoucher, any>[] = [
   {
     id: 'actions',
     header: 'Actions',
-    meta: { width: 'w-16' },
+    meta: { width: 'w-16', align: 'end' },
     enableResizing: false,
     size: 64,
     cell: () => (
@@ -347,16 +381,16 @@ const ledgerColumns: ColumnDef<BankLedger, any>[] = [
   {
     accessorKey: 'accountType',
     header: 'Account Type',
-    cell: ({ row }) => (row.original.accountType ? <PlainTextCell>{row.original.accountType}</PlainTextCell> : <EmptyCell>Not Mapped</EmptyCell>),
+    cell: ({ row }) => <PlainTextCell empty="Not Mapped">{row.original.accountType}</PlainTextCell>,
   },
   {
     accessorKey: 'unreconciled',
     header: 'Unreconciled',
     cell: ({ row }) =>
       row.original.unreconciled ? (
-        <span className="text-destructive">{row.original.unreconciled} Transactions</span>
+        <Cell tone="negative">{row.original.unreconciled} Transactions</Cell>
       ) : (
-        <EmptyCell />
+        <Cell />
       ),
   },
 ]
@@ -533,6 +567,7 @@ const editableColumns: ColumnDef<MappingRow, any>[] = [
   {
     accessorKey: 'amount',
     header: columnHeader('Amount', { sortable: true }),
+    meta: { align: 'end' },
     cell: ({ row }) => <AmountCell amount={row.original.amount} />,
     size: 130,
   },
@@ -662,7 +697,7 @@ const chargebackColumns: ColumnDef<ChargebackRow, any>[] = [
   { accessorKey: 'description', header: columnHeader<ChargebackRow>('Description'), meta: { title: 'Description' }, cell: ({ row }) => <PlainTextCell>{row.original.description}</PlainTextCell> },
   { accessorKey: 'ledger', header: columnHeader<ChargebackRow>('Ledger'), meta: { title: 'Ledger' }, cell: ({ row }) => <PlainTextCell>{row.original.ledger}</PlainTextCell> },
   { accessorKey: 'type', header: columnHeader<ChargebackRow>('Type'), meta: { title: 'Type' }, cell: ({ row }) => <PlainTextCell>{row.original.type}</PlainTextCell> },
-  { accessorKey: 'amount', header: sortableHeader<ChargebackRow>('Amount'), meta: { title: 'Amount' }, cell: ({ row }) => <AmountCell amount={row.original.amount} variant={row.original.amount < 0 ? 'debit' : 'credit'} /> },
+  { accessorKey: 'amount', header: sortableHeader<ChargebackRow>('Amount'), meta: { title: 'Amount', align: 'end' }, cell: ({ row }) => <AmountCell amount={row.original.amount} variant={row.original.amount < 0 ? 'debit' : 'credit'} /> },
   { accessorKey: 'gst', header: columnHeader<ChargebackRow>('GST Registration'), meta: { title: 'GST Registration' }, cell: ({ row }) => <PlainTextCell>{row.original.gst}</PlainTextCell> },
   { accessorKey: 'costCentre', header: columnHeader<ChargebackRow>('Cost Centre'), meta: { title: 'Cost Centre' }, cell: ({ row }) => <PlainTextCell>{row.original.costCentre}</PlainTextCell> },
   { accessorKey: 'reviewed', header: columnHeader<ChargebackRow>('Reviewed'), meta: { title: 'Reviewed', lockColumn: true }, cell: ({ row }) => <PlainTextCell>{row.original.reviewed}</PlainTextCell> },
@@ -756,7 +791,7 @@ const ledgerDateColumns: ColumnDef<LedgerEntry, any>[] = [
   {
     accessorKey: 'amount',
     header: sortableHeader<LedgerEntry>('Amount'),
-    meta: { title: 'Amount' },
+    meta: { title: 'Amount', align: 'end' },
     cell: ({ row }) => (
       <AmountCell amount={row.original.amount} variant={row.original.amount < 0 ? 'debit' : 'credit'} />
     ),
@@ -813,5 +848,277 @@ export const DatesSortChronologically: Story = {
       expect(cells[0]).toHaveTextContent('22 Dec 2025')
       expect(cells[1]).toHaveTextContent('9 Jan 2026')
     })
+  },
+}
+
+// --- Cell properties: alignment and empty-value handling --------------------------------------
+
+type IndexedAmount = { index: number; amount: number }
+
+const INDEXED_AMOUNTS: IndexedAmount[] = [
+  { index: 1, amount: 4500 },
+  { index: 2, amount: 12000 },
+]
+
+const alignmentColumns: ColumnDef<IndexedAmount, any>[] = [
+  {
+    accessorKey: 'index',
+    header: 'Si No.',
+    meta: { align: 'center', width: 'w-16' },
+    cell: ({ row }) => <PlainTextCell align="center">{row.original.index}</PlainTextCell>,
+  },
+  {
+    accessorKey: 'amount',
+    header: 'Amount',
+    meta: { align: 'end' },
+    cell: ({ row }) => <AmountCell amount={row.original.amount} />,
+  },
+]
+
+/** A column's `meta.align` aligns its header and every body cell together — Figma: "Si No." is
+ *  centred and Amount/Credit/Debit are right-aligned (node 24028:1090). `AmountCell` itself
+ *  defaults its own `align` to `'end'`, but the header only follows suit once the column also
+ *  declares `meta.align` — this story is the regression test for that agreement. */
+export const ColumnAlignment: Story = {
+  render: () => <Table columns={alignmentColumns} data={INDEXED_AMOUNTS} enableSorting={false} />,
+  play: async ({ canvas }) => {
+    const headers = canvas.getAllByRole('columnheader')
+    const cells = canvas.getAllByRole('gridcell')
+
+    await expect(getComputedStyle(headers[0]).textAlign).toBe('center')
+    await expect(getComputedStyle(cells[0]).textAlign).toBe('center')
+
+    // `text-align: end` resolves to a physical keyword ('right' in this LTR story) in some
+    // browsers and stays 'end' in others — accept either rather than pin one.
+    await expect(getComputedStyle(headers[1]).textAlign).toMatch(/right|end/)
+    await expect(getComputedStyle(cells[1]).textAlign).toMatch(/right|end/)
+  },
+}
+
+const EMPTY_VALUE_ROWS: Array<{ id: number }> = [{ id: 1 }]
+
+const emptyValueColumns: ColumnDef<{ id: number }, any>[] = [
+  { id: 'plain', header: 'Plain', cell: () => <PlainTextCell>{null}</PlainTextCell> },
+  { id: 'subtext', header: 'Sub text', cell: () => <SubTextCell subText={null}>{null}</SubTextCell> },
+  { id: 'amount', header: 'Amount', cell: () => <AmountCell amount={null} /> },
+  { id: 'status', header: 'Status', cell: () => <StatusCell>{null}</StatusCell> },
+  { id: 'avatar', header: 'Avatar', cell: () => <AvatarCell name={null} /> },
+  { id: 'link', header: 'Link', cell: () => <LinkCell>{null}</LinkCell> },
+  { id: 'progress', header: 'Progress', cell: () => <ProgressBarCell percent={null} /> },
+  { id: 'sync', header: 'Sync', cell: () => <SyncStatusCell status={null} /> },
+  { id: 'date', header: 'Date', cell: () => <DateCell value={null} /> },
+]
+
+/** Nullish row data must never crash a cell — `AmountCell`/`AvatarCell` used to (`.toFixed`/
+ *  `.trim` on `null`) — and reads as a muted em dash everywhere, so an empty value is never
+ *  silently a blank cell indistinguishable from a loading or broken one. */
+export const EmptyValues: Story = {
+  render: () => <Table columns={emptyValueColumns} data={EMPTY_VALUE_ROWS} enableSorting={false} />,
+  play: async ({ canvas }) => {
+    const cells = canvas.getAllByRole('gridcell')
+    await expect(cells).toHaveLength(9)
+    for (const cell of cells) {
+      await expect(cell).toHaveTextContent('—')
+    }
+  },
+}
+
+// --- Active cell, disabled cells, action-icon counts, tooltips, and a plain number cell -------
+
+/** The "active" cell is the keyboard-focused one: tab into the grid and it gets the system's
+ *  global focus ring (tokens.css's `:focus-visible` rule), exactly like every other focusable
+ *  element — nothing table-specific to opt into. Arrow-key movement between cells is covered by
+ *  `KeyboardNavigation`; this story is the minimal, discoverable demo of the ring itself. */
+export const ActiveCell: Story = {
+  render: () => <Table columns={basicColumns} data={PEOPLE} enableSorting={false} />,
+  play: async ({ canvas, userEvent }) => {
+    const cells = canvas.getAllByRole('gridcell')
+    await userEvent.tab()
+    await expect(document.activeElement).toBe(cells[0])
+    await expect(getComputedStyle(cells[0]).outlineStyle).toBe('solid')
+  },
+}
+
+type DisableableRow = { name: string; ledger: string }
+
+const DISABLE_ROWS: DisableableRow[] = [
+  { name: 'Ada Lovelace', ledger: 'sales' },
+  { name: 'Grace Hopper', ledger: 'purchase' },
+]
+
+const disabledColumns: ColumnDef<DisableableRow, any>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ row }) => (
+      <PlainTextCell editable isDisabled={row.index === 0}>
+        {row.original.name}
+      </PlainTextCell>
+    ),
+  },
+  {
+    accessorKey: 'ledger',
+    header: 'Ledger',
+    meta: { fillCell: true },
+    cell: ({ row }) => (
+      <DropdownCell
+        accessibilityLabel="Ledger"
+        options={LEDGER_OPTIONS}
+        defaultValue={row.original.ledger}
+        isDisabled={row.index === 0}
+      />
+    ),
+  },
+  {
+    id: 'link',
+    header: 'Link',
+    cell: ({ row }) => (
+      <LinkCell href="#" isDisabled={row.index === 0}>
+        Open
+      </LinkCell>
+    ),
+  },
+]
+
+/** `isDisabled` is per-cell (a row's own data decides it), not a column-wide switch — the first
+ *  row here is locked, the second isn't. Dropdown/Input get the real `disabled` attribute, not
+ *  just a dimmed look; a disabled link drops its `href` (matches Button.tsx's own treatment) so
+ *  it's out of the tab order rather than merely unclickable. */
+export const DisabledCells: Story = {
+  render: () => <Table columns={disabledColumns} data={DISABLE_ROWS} enableSorting={false} />,
+  play: async ({ canvas }) => {
+    const ledgerSelects = canvas.getAllByRole('combobox', { name: 'Ledger' })
+    await expect(ledgerSelects[0]).toBeDisabled()
+    await expect(ledgerSelects[1]).not.toBeDisabled()
+
+    const links = canvas.getAllByText('Open')
+    await expect(links[0]).toHaveAttribute('aria-disabled', 'true')
+    await expect(links[0]).not.toHaveAttribute('href')
+    await expect(links[1]).toHaveAttribute('href', '#')
+  },
+}
+
+// Figma: AIA - Component Library, Actions Column (node 603:2177) — one column holds either a
+// single icon button (a "⋮" menu) or two side by side (an upload icon + "⋮"). ActionsCell already
+// takes any number of buttons as children; "single"/"dual" is just how many you put in it.
+
+const iconButtonClasses =
+  'inline-flex items-center justify-center border-0 rounded-[var(--radius-6)] cursor-pointer bg-transparent text-muted-foreground hover:bg-[var(--color-bg-subtle)] hover:text-foreground p-0 w-7 h-7'
+
+const singleIconColumns: ColumnDef<Person, any>[] = [
+  { accessorKey: 'name', header: 'Name', cell: ({ row }) => <PlainTextCell>{row.original.name}</PlainTextCell> },
+  {
+    id: 'actions',
+    header: 'Actions',
+    meta: { width: 'w-16', align: 'end' },
+    cell: () => (
+      <ActionsCell>
+        <button type="button" className={iconButtonClasses} aria-label="Row actions">
+          <MoreHorizontal size={14} />
+        </button>
+      </ActionsCell>
+    ),
+  },
+]
+
+const dualIconColumns: ColumnDef<Person, any>[] = [
+  { accessorKey: 'name', header: 'Name', cell: ({ row }) => <PlainTextCell>{row.original.name}</PlainTextCell> },
+  {
+    id: 'actions',
+    header: 'Actions',
+    meta: { width: 'w-20', align: 'end' },
+    cell: () => (
+      <ActionsCell>
+        <button type="button" className={iconButtonClasses} aria-label="Upload">
+          <Upload size={14} />
+        </button>
+        <button type="button" className={iconButtonClasses} aria-label="Row actions">
+          <MoreHorizontal size={14} />
+        </button>
+      </ActionsCell>
+    ),
+  },
+]
+
+export const ActionIcons: Story = {
+  name: 'Action Icons (Single & Dual)',
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      <section>
+        <h3 style={{ margin: '0 0 12px', color: 'var(--color-text)', fontFamily: 'var(--font-family-primary)' }}>
+          Single icon
+        </h3>
+        <Table columns={singleIconColumns} data={PEOPLE} enableSorting={false} />
+      </section>
+      <section>
+        <h3 style={{ margin: '0 0 12px', color: 'var(--color-text)', fontFamily: 'var(--font-family-primary)' }}>
+          Dual icon
+        </h3>
+        <Table columns={dualIconColumns} data={PEOPLE} enableSorting={false} />
+      </section>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getAllByRole('button', { name: 'Row actions' }).length).toBeGreaterThan(0)
+    await expect(canvas.getAllByRole('button', { name: 'Upload' }).length).toBeGreaterThan(0)
+  },
+}
+
+/** The same native-tooltip mechanism `StatusCell.info` already used, generalized to every cell
+ *  via the shared `tooltip` prop. */
+export const WithTooltip: Story = {
+  render: () => (
+    <Table
+      columns={[
+        {
+          accessorKey: 'name',
+          header: 'Customer',
+          cell: ({ row }: { row: { original: { name: string } } }) => (
+            <PlainTextCell tooltip={`Full legal name: ${row.original.name}`}>{row.original.name}</PlainTextCell>
+          ),
+        },
+      ]}
+      data={[{ name: 'Aster Retail Group Pvt. Ltd.' }]}
+      enableSorting={false}
+    />
+  ),
+  play: async ({ canvas }) => {
+    const cell = canvas.getByText('Aster Retail Group Pvt. Ltd.').closest('[title]') as HTMLElement
+    await expect(cell).toHaveAttribute('title', 'Full legal name: Aster Retail Group Pvt. Ltd.')
+  },
+}
+
+type QuantityRow = { item: string; quantity: number | null; completion: number }
+
+const QUANTITY_ROWS: QuantityRow[] = [
+  { item: 'Invoice batch A', quantity: 128, completion: 100 },
+  { item: 'Invoice batch B', quantity: 42, completion: 67.5 },
+  { item: 'Invoice batch C', quantity: null, completion: 0 },
+]
+
+const numberColumns: ColumnDef<QuantityRow, any>[] = [
+  { accessorKey: 'item', header: 'Item', cell: ({ row }) => <PlainTextCell>{row.original.item}</PlainTextCell> },
+  {
+    accessorKey: 'quantity',
+    header: 'Quantity',
+    meta: { align: 'end' },
+    cell: ({ row }) => <NumberCell value={row.original.quantity} />,
+  },
+  {
+    accessorKey: 'completion',
+    header: 'Completion',
+    meta: { align: 'end' },
+    cell: ({ row }) => <NumberCell value={row.original.completion} decimals={1} suffix="%" />,
+  },
+]
+
+/** A plain numeric cell — right-aligned, tabular figures, but none of `AmountCell`'s ₹ symbol or
+ *  Cr/Dr suffix. For quantities, counts and percentages. */
+export const WithNumberCell: Story = {
+  render: () => <Table columns={numberColumns} data={QUANTITY_ROWS} enableSorting={false} />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('128')).toBeVisible()
+    await expect(canvas.getByText('67.5')).toBeVisible()
+    await expect(canvas.queryByText(/₹/)).not.toBeInTheDocument()
   },
 }

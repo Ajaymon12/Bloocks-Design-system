@@ -48,7 +48,7 @@ export function TableHead({ className, ...props }: ComponentProps<'th'>) {
   return (
     <th
       className={cn(
-        'h-[var(--space-40)] px-[var(--space-12)] text-left align-middle border-r border-[var(--color-table-border)] last:border-r-0',
+        'h-[var(--space-40)] px-[var(--space-12)] text-start align-middle border-r border-[var(--color-table-border)] last:border-r-0',
         'bg-[var(--color-table-header-bg)]',
         'text-[length:var(--text-label-3-size)] leading-[var(--text-label-3-line-height)] font-medium text-muted-foreground',
         'whitespace-nowrap',
@@ -59,12 +59,17 @@ export function TableHead({ className, ...props }: ComponentProps<'th'>) {
   )
 }
 
+// Padding here is the standard body-cell padding — Table/cells/cellVariants.ts's `CELL_PADDING`
+// is this same value, imported by InputCell/DropdownCell so their full-bleed native controls line
+// up with it without restating the literal. Default text size (12px, --text-body-4) matches
+// Figma's Table body cells; `Table.tsx` (the only consumer today) overrides it per its own `size`
+// prop via CELL_TEXT_CLASS.
 export function TableCell({ className, ...props }: ComponentProps<'td'>) {
   return (
     <td
       className={cn(
         'px-[var(--space-12)] py-[var(--space-8)] align-middle border-r border-[var(--color-table-border)] last:border-r-0',
-        'text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] text-foreground',
+        'text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] text-foreground',
         'whitespace-nowrap',
         className,
       )}

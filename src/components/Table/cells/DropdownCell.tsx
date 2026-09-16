@@ -1,8 +1,10 @@
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
-// available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
+// available and either used. Keep src/foundations/usedIcons.ts in sync with these.
 import { ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { SelectOption } from '@/components/Input/Select'
+import { CELL_ICON_SLOT, CELL_PADDING } from './cellVariants'
 
 export type DropdownCellProps = {
   accessibilityLabel: string
@@ -11,21 +13,45 @@ export type DropdownCellProps = {
   defaultValue?: string
   placeholder?: string
   onChange?: (event: ChangeEvent<HTMLSelectElement>) => void
+  /** Rendered before the `<select>`, e.g. a generic category icon. */
+  leadingIcon?: ReactNode
+  /** Gives the native `<select>` the real `disabled` attribute (keyboard/screen-reader correct,
+   * not just dimmed) and dims the whole cell. */
+  isDisabled?: boolean
+  tooltip?: string
+  className?: string
 }
 
-// A native <select> filling the entire cell — not a wrapped Select (which carries its own
-// visible border/shadow/rounded box), because that reads as a form field floating *inside* the
-// cell rather than the cell itself being the field. Pair with `meta: { fillCell: true }` on the
-// column def so the wrapping <td> contributes no padding of its own; this component's own
-// px/py reproduce the standard cell padding so text still lines up with plain-text cells in the
-// same row, while the full-bleed w-full/h-full keeps the entire cell clickable, not just an
-// inset box.
-export function DropdownCell({ accessibilityLabel, options, placeholder, ...props }: DropdownCellProps) {
+export function DropdownCell({
+  accessibilityLabel,
+  options,
+  placeholder,
+  leadingIcon,
+  isDisabled,
+  tooltip,
+  className,
+  ...props
+}: DropdownCellProps) {
   return (
-    <div className="relative w-full h-full">
+    <div
+      title={tooltip}
+      className={cn('relative flex w-full h-full items-center', isDisabled && 'opacity-50', className)}
+    >
+      {leadingIcon && (
+        <span className={cn(CELL_ICON_SLOT.md, 'pointer-events-none absolute left-[var(--space-12)] text-muted-foreground')} aria-hidden="true">
+          {leadingIcon}
+        </span>
+      )}
       <select
         aria-label={accessibilityLabel}
-        className="w-full h-full appearance-none bg-transparent border-0 outline-none cursor-pointer px-[var(--space-12)] py-[var(--space-8)] pr-[var(--space-24)] text-inherit font-[family-name:var(--font-family-primary)]"
+        disabled={isDisabled}
+        className={cn(
+          'w-full h-full appearance-none bg-transparent border-0 outline-none cursor-pointer text-inherit font-[family-name:var(--font-family-primary)]',
+          'disabled:cursor-not-allowed',
+          CELL_PADDING,
+          'pr-[var(--space-24)]',
+          leadingIcon && 'pl-[calc(var(--space-12)+16px+var(--space-8))]',
+        )}
         {...props}
       >
         {placeholder && (

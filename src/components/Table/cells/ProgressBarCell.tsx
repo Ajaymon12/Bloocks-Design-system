@@ -1,20 +1,38 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { useCellProps } from './cellContext'
+import type { CellSize } from './cellVariants'
+import { CELL_DISABLED_CLASS, CELL_SECONDARY_TEXT, isCellValueEmpty } from './cellVariants'
 
 export type ProgressBarCellProps = {
   /** Label shown on the left, e.g. a raw count ("10"). */
-  label: ReactNode
+  label?: ReactNode
   /** 0–100. */
-  percent: number
+  percent: number | null | undefined
+  size?: CellSize
+  empty?: ReactNode
+  isDisabled?: boolean
+  tooltip?: string
   className?: string
 }
 
-export function ProgressBarCell({ label, percent, className }: ProgressBarCellProps) {
-  const clamped = Math.min(100, Math.max(0, percent))
+export function ProgressBarCell({ label, percent, size, empty, isDisabled, tooltip, className }: ProgressBarCellProps) {
+  const resolved = useCellProps({ size, empty })
+  const isEmpty = isCellValueEmpty(percent)
+
+  if (isEmpty) {
+    return (
+      <div title={tooltip} className={cn('flex w-full min-w-[120px] items-center', isDisabled && CELL_DISABLED_CLASS, className)}>
+        <span className="text-muted-foreground">{resolved.empty}</span>
+      </div>
+    )
+  }
+
+  const clamped = Math.min(100, Math.max(0, percent!))
 
   return (
-    <div className={cn('flex flex-col gap-[var(--space-4)] min-w-[120px]', className)}>
-      <div className="flex items-center justify-between text-[length:var(--text-body-4-size)] text-foreground">
+    <div title={tooltip} className={cn('flex flex-col gap-[var(--space-4)] min-w-[120px]', isDisabled && CELL_DISABLED_CLASS, className)}>
+      <div className={cn('flex items-center justify-between text-foreground', CELL_SECONDARY_TEXT[resolved.size])}>
         <span>{label}</span>
         <span>{clamped}%</span>
       </div>
