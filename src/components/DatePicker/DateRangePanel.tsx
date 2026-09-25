@@ -5,13 +5,12 @@ import { isSameRange } from '@/lib/date'
 import type { DatePreset, DateRangeValue } from '@/lib/date'
 import { DateRangeFields } from './DateRangeFields'
 
-// Figma: AIA - Component Library, "Date range" (node 667:11575). The fields themselves live in
+// Figma: AIA - Component Library, "Date range" (node 667:11575). The calendars themselves live in
 // `DateRangeFields`; this panel adds the draft and the Reset/Apply pair for a standalone popover.
 //
-// Unlike FilterDropdown, this panel stages changes behind Apply. A range needs two clicks and a
-// typed date is incomplete until its last digit, so committing live would filter on half-entered
-// input. Every surface that hosts the panel (DateFilter, DatePicker, the Table column filter)
-// shares this behaviour.
+// Unlike FilterDropdown, this panel stages changes behind Apply. A range needs two clicks, so
+// committing live would filter on a half-picked range. Every surface that hosts the panel
+// (DateFilter, DatePicker, the Table column filter) shares this behaviour.
 
 export type DateRangePanelProps = {
   mode?: 'single' | 'range'
@@ -20,7 +19,7 @@ export type DateRangePanelProps = {
   onApply: (value: DateRangeValue) => void
   /** Preset dropdown options (range mode). A "Custom" option is always appended. */
   presets?: DatePreset[]
-  /** Label above the preset dropdown, e.g. "Show transactions for". */
+  /** Label above the preset dropdown, e.g. "Show results for". */
   presetsLabel?: string
   /** Shows a Reset button beside Apply. On by default; Figma's frame omits it, but product needs a
    * way to clear the draft from inside the panel. */
@@ -34,6 +33,8 @@ export type DateRangePanelProps = {
   maxDate?: Date
   /** 0 = Sunday … 6 = Saturday. Sunday by default, per Figma. */
   weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
+  /** Months shown side by side: two in range mode and one in single mode by default. */
+  months?: 1 | 2
   className?: string
 }
 
@@ -55,6 +56,7 @@ export function DateRangePanel({
   minDate,
   maxDate,
   weekStartsOn,
+  months,
   className,
 }: DateRangePanelProps) {
   const isRange = mode === 'range'
@@ -63,6 +65,7 @@ export function DateRangePanel({
   // The panel mounts fresh every time its popover opens, so seeding state from `value` here is
   // enough — there's no stale draft to reconcile with a value that changed while it was closed.
   const [draft, setDraft] = useState<DateRangeValue>(committed)
+  // False while only one end of a range is picked.
   const [isValid, setIsValid] = useState(true)
 
   // Single mode compares the one date only, so re-picking the same day doesn't count as a change.
@@ -95,6 +98,7 @@ export function DateRangePanel({
       minDate={minDate}
       maxDate={maxDate}
       weekStartsOn={weekStartsOn}
+      months={months}
       className={className}
       footerEnd={
         <>

@@ -113,16 +113,18 @@ export const SearchFieldNames: Story = {
   },
 }
 
-/** A date only filters once it's a whole range — never on a From without a To. */
-export const DateWaitsUntilComplete: Story = {
+/** Every pick is a whole range, so the date filters straight away: one click is a single day and a
+ *  second extends it. */
+export const DateAppliesAsDaysArePicked: Story = {
   play: async ({ args, canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('tab', { name: 'Date' }))
-    await userEvent.click(canvas.getByRole('textbox', { name: 'From date, day' }))
-    await userEvent.keyboard('01092026')
-    await expect(args.onChange).not.toHaveBeenCalled()
+    // The pane is one column wide, so it shows a single month.
+    await expect(canvas.getAllByRole('grid')).toHaveLength(1)
 
-    await userEvent.click(canvas.getByRole('textbox', { name: 'To date, day' }))
-    await userEvent.keyboard('10092026')
+    await userEvent.click(await canvas.findByRole('button', { name: /September 1st, 2026/ }))
+    await expect(args.onChange).toHaveBeenLastCalledWith({ date: { from: new Date(2026, 8, 1), to: new Date(2026, 8, 1) } })
+
+    await userEvent.click(canvas.getByRole('button', { name: /September 10th, 2026/ }))
     await expect(args.onChange).toHaveBeenLastCalledWith({ date: { from: new Date(2026, 8, 1), to: new Date(2026, 8, 10) } })
   },
 }

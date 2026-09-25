@@ -97,7 +97,7 @@
   --color-input-focus-ring: var(--palette-blue-200);
   --color-input-error: var(--palette-red-600);
   --shadow-input: 0 1px 1px rgba(0, 0, 0, 0.07);
-  /* Quietest field outline — the date range panel's dropdown and date fields, per design review. */
+  /* Quietest outline — for the filter panels' inner fields and dividers, per design review. */
   --color-border-subtle: var(--palette-neutral-50);
   /* Selected and hovered items in a neutral list (the All filters sidebar and option rows). The
    * palette has no step between neutral-0 and neutral-50, so both are tints of neutral-50 toward

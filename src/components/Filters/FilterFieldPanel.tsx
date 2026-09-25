@@ -76,8 +76,7 @@ function DateFieldPanel({
   onChange: (next: DateRangeValue | undefined) => void
   today?: Date
 }) {
-  // Holds a range while it's incomplete (first day clicked, digits half-typed); the applied value
-  // only changes once it's whole.
+  // Holds the range being picked; the applied value only changes once it's whole.
   const [draft, setDraft] = useState<DateRangeValue>(value)
 
   return (

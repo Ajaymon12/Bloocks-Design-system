@@ -5,13 +5,15 @@ import { DateFilter } from './DateFilter'
 import { FilterDropdown } from '@/components/FilterDropdown'
 import type { DateRangeValue } from '@/lib/date'
 
-// Layout follows Figma: AIA - Component Library, "Date range" (node 667:11575) — a preset dropdown,
-// typed From/To fields over a single Sunday-first month, and month and year pickers beside Apply.
+// Layout follows Figma: AIA - Component Library, "Date range" (node 667:11575) — a preset dropdown
+// over two Sunday-first months side by side, each under its own boxed header, with Reset and Apply
+// beneath. The day states (selected, range start/middle/end, hover, disabled, empty) are node
+// 664:11225.
 //
 // Every story pins `today` to a fixed date. Anything deriving "today" from the clock would flake
 // across midnight and between timezones, and preset assertions ("Last 30 days") would drift daily.
 const TODAY = new Date(2026, 8, 15) // 15 Sep 2026
-const PRESETS_LABEL = 'Show transactions for'
+const PRESETS_LABEL = 'Show results for'
 
 const meta = {
   title: 'Components/DateFilter',
@@ -32,7 +34,7 @@ async function choosePreset(userEvent: { selectOptions: (element: Element, value
   await userEvent.selectOptions(await screen.findByRole('combobox', { name: PRESETS_LABEL }), label)
 }
 
-/** Transactions can't be dated in the future, so as in Figma the grid stops at today (`maxDate`). */
+/** Nothing can be dated in the future, so the grid stops at today (`maxDate`). */
 export const Default: Story = {
   args: { maxDate: TODAY },
   render: (args) => <Controlled {...args} />,
@@ -41,8 +43,8 @@ export const Default: Story = {
   },
 }
 
-/** Nothing is filtered until Apply. A range takes two clicks and a typed date is incomplete until
- *  its last digit, so committing live would filter on half-entered input. */
+/** Nothing is filtered until Apply. A range takes two clicks, so committing live would filter on a
+ *  half-picked range. */
 export const ChangesWaitForApply: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
@@ -125,7 +127,74 @@ export const ClearResetsTheRange: Story = {
   },
 }
 
-/** Clicking two days fills the From and To fields as well as the grid. */
+/** A range panel shows two months side by side, each under its own boxed header. */
+export const TwoMonthsSideBySide: Story = {
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
+    await expect(await screen.findByRole('grid', { name: 'September 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'October 2026' })).toBeInTheDocument()
+    // Days from the neighbouring month are left empty, so a date never appears in both grids.
+    await expect(screen.getAllByRole('button', { name: /September 30th, 2026/ })).toHaveLength(1)
+  },
+}
+
+/** Nothing can be dated after `maxDate`, so the pair slides back to end on today's month — the right
+ *  month holds today — and there's nowhere further forward to go. */
+export const StopsAtMaxDate: Story = {
+  args: { maxDate: TODAY },
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
+    await expect(await screen.findByRole('grid', { name: 'August 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'September 2026' })).toBeInTheDocument()
+    await expect(screen.queryByRole('grid', { name: 'October 2026' })).not.toBeInTheDocument()
+
+    await expect(screen.getByRole('button', { name: 'Month after September 2026' })).toBeDisabled()
+    await expect(screen.getByRole('button', { name: /September 15th, 2026/ })).toBeEnabled()
+    await expect(screen.getByRole('button', { name: /September 16th, 2026/ })).toBeDisabled()
+  },
+}
+
+/** Each month has its own chevrons: move the right-hand month on without touching the left, so a
+ *  start and an end can sit months apart. */
+export const MonthsNavigateIndependently: Story = {
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Month after October 2026' }))
+
+    await expect(await screen.findByRole('grid', { name: 'November 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'September 2026' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Month before September 2026' }))
+    await expect(await screen.findByRole('grid', { name: 'August 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'November 2026' })).toBeInTheDocument()
+  },
+}
+
+/** The two months stay in order and never repeat: moving one onto its partner pushes the partner
+ *  along, in either direction. */
+export const MonthsNeverShowTheSameMonth: Story = {
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
+
+    // Left forward onto October: October stays on the left and November takes the right.
+    await userEvent.click(await screen.findByRole('button', { name: 'Month after September 2026' }))
+    await expect(await screen.findByRole('grid', { name: 'October 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'November 2026' })).toBeInTheDocument()
+    await expect(screen.queryByRole('grid', { name: 'September 2026' })).not.toBeInTheDocument()
+
+    // Right back onto October: it pushes the left month back to September.
+    await userEvent.click(screen.getByRole('button', { name: 'Month before November 2026' }))
+    await expect(await screen.findByRole('grid', { name: 'September 2026' })).toBeInTheDocument()
+    await expect(screen.getByRole('grid', { name: 'October 2026' })).toBeInTheDocument()
+    await expect(screen.queryByRole('grid', { name: 'November 2026' })).not.toBeInTheDocument()
+  },
+}
+
+/** Two clicks make a range, and nothing is filtered until Apply. */
 export const PickDatesFromTheCalendar: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
@@ -133,9 +202,7 @@ export const PickDatesFromTheCalendar: Story = {
     // The grid labels days with their full date, so these are unambiguous.
     await userEvent.click(await screen.findByRole('button', { name: /September 10th, 2026/ }))
     await userEvent.click(await screen.findByRole('button', { name: /September 14th, 2026/ }))
-
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'From date, day' })).toHaveValue('10'))
-    await expect(screen.getByRole('textbox', { name: 'To date, day' })).toHaveValue('14')
+    await expect(screen.getByRole('button', { name: /September 12th, 2026, selected/ })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => {
@@ -144,65 +211,54 @@ export const PickDatesFromTheCalendar: Story = {
   },
 }
 
-/** Focus moves forward as each segment fills, so a whole date is eight keystrokes. */
-export const TypeARange: Story = {
+/** The start and the end can sit in different months — one click in each grid. */
+export const RangeAcrossTwoMonths: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
-    await userEvent.click(await screen.findByRole('textbox', { name: 'From date, day' }))
-    await userEvent.keyboard('01092026')
-    await userEvent.click(screen.getByRole('textbox', { name: 'To date, day' }))
-    await userEvent.keyboard('12092026')
+    await userEvent.click(await screen.findByRole('button', { name: /September 26th, 2026/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /October 8th, 2026/ }))
 
-    await expect(screen.getByRole('textbox', { name: 'From date, year' })).toHaveValue('2026')
+    // The band runs unbroken across the boundary.
+    await expect(screen.getByRole('button', { name: /September 30th, 2026, selected/ })).toBeInTheDocument()
+    await expect(screen.getByRole('button', { name: /October 3rd, 2026, selected/ })).toBeInTheDocument()
+
     await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => {
-      expect(canvas.getByRole('button', { name: 'Date' })).toHaveTextContent('1 – 12 Sep 2026')
+      expect(canvas.getByRole('button', { name: 'Date' })).toHaveTextContent('26 Sep – 8 Oct 2026')
     })
   },
 }
 
-/** A finished but impossible date is flagged rather than silently rolled over (31 Sep → 1 Oct). */
-export const InvalidDateIsFlagged: Story = {
+/** One click is a whole one-day range, so Apply is ready straight away; a second click extends it. */
+export const OneClickPicksASingleDay: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
-    await choosePreset(userEvent, 'Last 7 days')
+    await expect(await screen.findByRole('button', { name: 'Apply' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: /September 10th, 2026/ }))
     await expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
 
-    // Replace the From day with 31 — September has 30.
-    await userEvent.clear(screen.getByRole('textbox', { name: 'From date, day' }))
-    await userEvent.keyboard('31')
-
-    await waitFor(() => expect(screen.getByText('Not a valid date')).toBeVisible())
-    await expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => {
+      expect(canvas.getByRole('button', { name: 'Date' })).toHaveTextContent('10 Sep 2026')
+    })
+    await expect(canvas.getByRole('button', { name: 'Date' })).not.toHaveTextContent('–')
   },
 }
 
-/** Two typed fields can put To before From, which the grid can't — so it's caught, and here the
- *  inverted range is the only thing standing between the user and Apply. */
-export const ToBeforeFromBlocksApply: Story = {
-  render: (args) => <Controlled {...args} />,
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
-    await userEvent.click(await screen.findByRole('textbox', { name: 'From date, day' }))
-    await userEvent.keyboard('20092026')
-    await userEvent.click(screen.getByRole('textbox', { name: 'To date, day' }))
-    await userEvent.keyboard('12092026')
-
-    await waitFor(() => expect(screen.getByText('Must be on or after the From date')).toBeVisible())
-    await expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
-  },
-}
-
-/** Choosing "Custom" in the dropdown puts the cursor in the From field, ready to type. */
-export const CustomFocusesFromDate: Story = {
+/** Choosing "Custom" keeps the days already picked and just relabels the dropdown. */
+export const CustomKeepsThePickedDays: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
     await choosePreset(userEvent, 'Last 7 days')
+    await expect(screen.getByRole('combobox', { name: PRESETS_LABEL })).toHaveValue('Last 7 days')
+
     await choosePreset(userEvent, 'Custom')
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'From date, day' })).toHaveFocus())
+    await expect(screen.getByRole('combobox', { name: PRESETS_LABEL })).toHaveValue('Custom')
+    await expect(screen.getByRole('button', { name: /September 12th, 2026, selected/ })).toBeInTheDocument()
   },
 }
 
@@ -212,11 +268,12 @@ export const ResetThenApply: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
-    const reset = await screen.findByRole('button', { name: 'Reset' })
+    await expect(await screen.findByRole('button', { name: /August 12th, 2026, selected/ })).toBeInTheDocument()
+    const reset = screen.getByRole('button', { name: 'Reset' })
     await expect(reset).toBeEnabled()
 
     await userEvent.click(reset)
-    await expect(screen.getByRole('textbox', { name: 'From date, day' })).toHaveValue('')
+    await expect(screen.getByRole('button', { name: /August 12th, 2026$/ })).toBeInTheDocument()
     await expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled()
 
     await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
@@ -226,37 +283,22 @@ export const ResetThenApply: Story = {
   },
 }
 
-/** The footer's month and year buttons jump straight to a month or year instead of paging. */
-export const JumpToMonthAndYear: Story = {
-  render: (args) => <Controlled {...args} />,
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
-
-    await userEvent.click(await screen.findByRole('button', { name: /Choose month/ }))
-    await userEvent.click(screen.getByRole('button', { name: 'March' }))
-    await expect(await screen.findByRole('button', { name: /March 10th, 2026/ })).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: /Choose year/ }))
-    await userEvent.click(screen.getByRole('button', { name: '2024' }))
-    await expect(await screen.findByRole('button', { name: /March 10th, 2024/ })).toBeInTheDocument()
-  },
-}
-
 /** Weeks start on Sunday by default, per Figma; pass `weekStartsOn={1}` for Monday. */
 export const WeekStartsOnSunday: Story = {
   render: (args) => <Controlled {...args} />,
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
     // react-day-picker renders weekday headers inside <thead aria-hidden="true">, so they carry no
-    // `columnheader` role to query by — read the first header cell off the grid instead.
-    const grid = await screen.findByRole('grid')
+    // `columnheader` role to query by — read the first header cell off each grid instead.
+    const grids = await screen.findAllByRole('grid')
+    await expect(grids).toHaveLength(2)
     await waitFor(() => {
-      expect(grid.querySelector('thead th')).toHaveAttribute('aria-label', 'Sunday')
+      for (const grid of grids) expect(grid.querySelector('thead th')).toHaveAttribute('aria-label', 'Sunday')
     })
   },
 }
 
-/** `minDate`/`maxDate` grey out days in the grid and reject them when typed. */
+/** `minDate`/`maxDate` grey out days in the grid and stop the month chevrons at the edge. */
 export const BoundedRange: Story = {
   args: { minDate: new Date(2026, 8, 1), maxDate: new Date(2026, 8, 20) },
   render: (args) => <Controlled {...args} />,
@@ -264,10 +306,10 @@ export const BoundedRange: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Date' }))
     await waitFor(() => expect(screen.getByRole('button', { name: /September 15th, 2026/ })).toBeEnabled())
     await expect(screen.getByRole('button', { name: /September 25th, 2026/ })).toBeDisabled()
+    await expect(screen.getByRole('button', { name: /October 1st, 2026/ })).toBeDisabled()
 
-    await userEvent.click(screen.getByRole('textbox', { name: 'To date, day' }))
-    await userEvent.keyboard('25092026')
-    await waitFor(() => expect(screen.getByText('Must be on or before 20 Sep 2026')).toBeVisible())
+    await expect(screen.getByRole('button', { name: 'Month before September 2026' })).toBeDisabled()
+    await expect(screen.getByRole('button', { name: 'Month after October 2026' })).toBeDisabled()
   },
 }
 
