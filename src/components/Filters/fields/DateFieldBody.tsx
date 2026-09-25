@@ -25,6 +25,8 @@ export function DateFieldBody({ field, value, onChange, today }: DateFieldBodyPr
       minDate={field.minDate}
       maxDate={field.maxDate}
       weekStartsOn={field.weekStartsOn}
+      // The pane is one column wide, so it shows a single month rather than the popover's two.
+      months={1}
       // The pane header already supplies the top spacing and the field name.
       className="w-full pt-0"
     />

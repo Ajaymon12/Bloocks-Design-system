@@ -7,8 +7,8 @@ import { EnumFieldBody } from './EnumFieldBody'
 export type FieldBodyProps = {
   field: FilterField
   value: FilterValue | undefined
-  /** `isValid` is false only while a date is half-typed or has one end chosen; list fields are
-   * always valid. Reported in the same call so a host sees value and validity together. */
+  /** `isValid` is false only while a date range has just one end; list fields are always valid.
+   * Reported in the same call so a host sees value and validity together. */
   onChange: (next: FilterValue, isValid: boolean) => void
   today?: Date
   autoFocus?: boolean

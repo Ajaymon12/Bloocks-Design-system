@@ -1,4 +1,5 @@
 import {
+  addMonths,
   endOfMonth,
   format,
   isSameDay,
@@ -160,49 +161,7 @@ export function isWithinRange(value: Date | string | number, range: DateRangeVal
   return true
 }
 
-export function isBeforeDay(a: Date, b: Date): boolean {
-  return startOfDay(a) < startOfDay(b)
-}
-
-/** True when `date` falls outside an inclusive, day-granular [min, max] window. */
-export function isOutsideBounds(date: Date, min?: Date, max?: Date): boolean {
-  const day = startOfDay(date)
-  return (Boolean(min) && day < startOfDay(min as Date)) || (Boolean(max) && day > startOfDay(max as Date))
-}
-
-// --- Typed DD / MM / YYYY entry ---------------------------------------------------------------
-
-export type DateParts = { day: string; month: string; year: string }
-
-export function toDateParts(date: Date | undefined): DateParts {
-  if (!date || !isValid(date)) return { day: '', month: '', year: '' }
-  return { day: format(date, 'dd'), month: format(date, 'MM'), year: format(date, 'yyyy') }
-}
-
-export type DatePartsResult =
-  | { status: 'empty' }
-  | { status: 'incomplete' }
-  | { status: 'invalid' }
-  | { status: 'valid'; date: Date }
-
-/** Distinguishes "still typing" from "finished but impossible": 31/02/2026 is complete and
- * invalid, whereas 31/02/20 is merely incomplete. The round-trip check catches the dates
- * JavaScript would otherwise silently roll over (31 Feb → 3 Mar). */
-export function parseDateParts({ day, month, year }: DateParts): DatePartsResult {
-  if (!day && !month && !year) return { status: 'empty' }
-  if (!day || !month || year.length !== 4) return { status: 'incomplete' }
-  const d = Number(day)
-  const m = Number(month)
-  const y = Number(year)
-  const date = new Date(y, m - 1, d)
-  const isReal =
-    m >= 1 && m <= 12 && d >= 1 && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
-  return isReal ? { status: 'valid', date } : { status: 'invalid' }
-}
-
-// --- Month and year pickers -------------------------------------------------------------------
-
-export const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => format(new Date(2000, index, 1), 'MMM'))
+// --- Months -----------------------------------------------------------------------------------
 
 export function formatMonthName(year: number, monthIndex: number): string {
   return format(new Date(year, monthIndex, 1), 'MMMM')
@@ -212,12 +171,13 @@ export function firstOfMonth(date: Date): Date {
   return startOfMonth(date)
 }
 
+/** `date` moved by `amount` months (negative goes back). */
+export function shiftMonth(date: Date, amount: number): Date {
+  return addMonths(date, amount)
+}
+
 /** A month is unavailable only when every one of its days is out of bounds. */
 export function isMonthOutsideBounds(year: number, monthIndex: number, min?: Date, max?: Date): boolean {
   const first = new Date(year, monthIndex, 1)
   return (Boolean(max) && first > startOfDay(max as Date)) || (Boolean(min) && endOfMonth(first) < startOfDay(min as Date))
-}
-
-export function isYearOutsideBounds(year: number, min?: Date, max?: Date): boolean {
-  return (Boolean(max) && year > (max as Date).getFullYear()) || (Boolean(min) && year < (min as Date).getFullYear())
 }

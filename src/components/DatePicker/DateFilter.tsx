@@ -14,7 +14,7 @@ export type DateFilterProps = {
    * doesn't fire it — a range isn't final until both ends are chosen. */
   onChange?: (value: DateRangeValue) => void
   presets?: DatePreset[]
-  /** Label above the panel's preset dropdown, e.g. "Show transactions for". */
+  /** Label above the panel's preset dropdown, e.g. "Show results for". */
   presetsLabel?: string
   /** What the panel's Reset restores. Defaults to no date. */
   resetValue?: DateRangeValue

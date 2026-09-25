@@ -42,25 +42,12 @@ export const PickASingleDate: Story = {
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Invoice date' }))
     await userEvent.click(await screen.findByRole('button', { name: /September 22nd, 2026/ }))
+    // Single mode shows one month, not the range panel's two.
+    await expect(screen.getAllByRole('grid')).toHaveLength(1)
     await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => {
       expect(canvas.getByRole('button', { name: 'Invoice date' })).toHaveTextContent('22 Sep 2026')
-    })
-  },
-}
-
-/** In single mode the panel shows one DD / MM / YYYY field instead of From and To. */
-export const TypeASingleDate: Story = {
-  render: (args) => <Controlled {...args} />,
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Invoice date' }))
-    await userEvent.click(await screen.findByRole('textbox', { name: 'Date, day' }))
-    await userEvent.keyboard('05102026')
-    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
-
-    await waitFor(() => {
-      expect(canvas.getByRole('button', { name: 'Invoice date' })).toHaveTextContent('5 Oct 2026')
     })
   },
 }
@@ -73,12 +60,15 @@ export const WithValue: Story = {
   },
 }
 
-/** `mode="range"` reuses the same field with the preset sidebar attached. */
+/** `mode="range"` reuses the same field with the preset dropdown attached and two months on show. */
 export const RangeMode: Story = {
   args: { mode: 'range', label: 'Reporting period', value: { from: new Date(2026, 7, 12), to: new Date(2026, 7, 19) } },
   render: (args) => <Controlled {...args} />,
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByText('12 – 19 Aug 2026')).toBeVisible()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Reporting period' }))
+    await expect(await screen.findAllByRole('grid')).toHaveLength(2)
   },
 }
 
