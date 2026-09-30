@@ -59,7 +59,9 @@ export const FilterChip = forwardRef<HTMLDivElement, FilterChipProps>(function F
     <div
       ref={ref}
       className={cn(
-        'inline-flex h-[var(--space-28)] w-fit items-center overflow-hidden rounded-[var(--radius-8)] border',
+        // focus-inset: the chip clips its children, so an outside focus ring on the trigger or
+        // clear button would be cut off — the ring is drawn inside instead (tokens.css).
+        'focus-inset inline-flex h-[var(--space-28)] w-fit items-center overflow-hidden rounded-[var(--radius-8)] border',
         'font-[family-name:var(--font-family-primary)]',
         'transition-[border-color,background-color] duration-150 ease-in-out',
         isSelected

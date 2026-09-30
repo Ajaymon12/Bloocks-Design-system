@@ -48,6 +48,7 @@ export function StatusCell({ children, color = 'neutral', icon, info, align, siz
           </Badge>
           {info && (
             <span
+              role="img"
               title={info}
               aria-label={info}
               className={cn(CELL_ICON_SLOT[resolved.size], 'text-muted-foreground cursor-help')}

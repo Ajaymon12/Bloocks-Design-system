@@ -113,8 +113,9 @@ export function SideNav({
 
 // The negative margin and matching padding give the global 2px focus ring (2px offset) room
 // inside the scroll container, which would otherwise clip it at the edges.
+// focus-inset: the list clips its links, so their focus ring is drawn inside (tokens.css).
 const listClasses =
-  'm-0 flex list-none flex-col gap-[var(--space-4)] p-[var(--space-4)] -mx-[var(--space-4)] -mt-[var(--space-4)]'
+  'focus-inset m-0 flex list-none flex-col gap-[var(--space-4)] p-[var(--space-4)] -mx-[var(--space-4)] -mt-[var(--space-4)]'
 
 /** The scrolling list of links. */
 export function SideNavBody({ children }: { children: ReactNode }) {

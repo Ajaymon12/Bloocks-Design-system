@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils'
 import { Pagination } from './Pagination'
 import { CellDefaultsContext } from './cells/cellContext'
 import type { CellDefaults } from './cells/cellContext'
+import { useGridKeyboard } from './useGridKeyboard'
 import { CELL_TEXT_ALIGN } from './cells/cellVariants'
 import type { CellAlign } from './cells/cellVariants'
 
@@ -109,7 +110,7 @@ const anyOfFilter: FilterFn<unknown> = (row, columnId, filterValue: string[]) =>
 anyOfFilter.autoRemove = (value) => !Array.isArray(value) || value.length === 0
 
 const SELECT_COLUMN_ID = 'select'
-const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'])
+const ACTIONS_COLUMN_ID = 'actions'
 
 export type TableSize = 'sm' | 'md'
 
@@ -191,7 +192,7 @@ export function Table<TData>({
   // Roving-tabindex grid navigation: only the cell at `focusedCell` is a tab stop (tabIndex 0),
   // every other gridcell is -1. `focusedCell` is bookkeeping only — it's updated (a) on `focus`,
   // whenever the browser naturally focuses a cell or a control inside it (click, Tab), and
-  // (b) imperatively by the document-level keydown listener below, which calls `.focus()` itself
+  // (b) imperatively by the document-level keydown listener in useGridKeyboard, which calls `.focus()` itself
   // right where it computes the destination. There is deliberately no effect that calls `.focus()`
   // in response to `focusedCell` changing: a `focus` event on a cell bubbles up from any
   // interactive child inside it (e.g. the row-selection Checkbox), so an effect reacting to that
@@ -200,9 +201,11 @@ export function Table<TData>({
   // receives focus — no custom focus-ring class needed here, unlike BaseInput/Select (that hack
   // is only for beating a co-applied plain utility class; nothing here competes with one).
   const [focusedCell, setFocusedCell] = useState<CellPosition>({ row: 0, col: 0 })
-  const cellRefs = useRef(new Map<string, HTMLTableCellElement>())
   const headerRefs = useRef(new Map<string, HTMLTableCellElement>())
   const containerRef = useRef<HTMLDivElement>(null)
+  // Whether content is scrolled away behind either frozen block — the edge shadows only show then,
+  // since with nothing behind it a shadow would just be noise.
+  const [scrolled, setScrolled] = useState({ fromStart: false, toEnd: false })
   const [pinnedOffsets, setPinnedOffsets] = useState<Record<string, number>>({})
   // Per-column Wrap/Clip choice, for columns with `meta: { textWrap: true }`. Absent from a
   // column's entry here means "clip" (the default) — only wrapped columns need to be tracked.
@@ -221,10 +224,34 @@ export function Table<TData>({
     [enableRowSelection, columns],
   )
 
+  // Structural columns are always frozen, whatever the user pins: the selection checkbox and the
+  // first visible column on the left, the Actions column (id 'actions') on the right. Computed from
+  // the definitions rather than read off `table`, since it's an input to `useReactTable`.
+  const fixedColumns = useMemo(() => {
+    const ids = resolvedColumns.map((column) => String(column.id ?? ('accessorKey' in column ? column.accessorKey : '')).replace(/\./g, '_'))
+    const ordered = [...columnOrder.filter((id) => ids.includes(id)), ...ids.filter((id) => !columnOrder.includes(id))]
+    const visible = ordered.filter((id) => columnVisibility[id] !== false)
+    const first = visible.find((id) => id !== SELECT_COLUMN_ID)
+    const actions = visible.includes(ACTIONS_COLUMN_ID) && first !== ACTIONS_COLUMN_ID ? ACTIONS_COLUMN_ID : undefined
+    return { first, actions }
+  }, [resolvedColumns, columnOrder, columnVisibility])
+
+  const effectivePinning = useMemo<ColumnPinningState>(() => {
+    const left = [
+      ...(enableRowSelection ? [SELECT_COLUMN_ID] : []),
+      ...(fixedColumns.first ? [fixedColumns.first] : []),
+      ...(columnPinning.left ?? []),
+    ]
+    return {
+      left: left.filter((id, index) => left.indexOf(id) === index),
+      right: fixedColumns.actions ? [fixedColumns.actions] : [],
+    }
+  }, [enableRowSelection, fixedColumns, columnPinning])
+
   const table = useReactTable({
     data,
     columns: resolvedColumns,
-    state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning, columnFilters },
+    state: { sorting, rowSelection, columnVisibility, columnOrder, columnPinning: effectivePinning, columnFilters },
     filterFns: { dateRange: dateRangeFilter, anyOf: anyOfFilter },
     onColumnFiltersChange: (updater) => {
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
@@ -273,7 +300,8 @@ export function Table<TData>({
       label: column.columnDef.meta?.title ?? column.id,
       visible: column.getIsVisible(),
       pinned: column.getIsPinned() === 'left',
-      locked: column.columnDef.meta?.lockColumn ?? false,
+      // The always-frozen columns can't be hidden, moved or unpinned, so they read as locked.
+      locked: (column.columnDef.meta?.lockColumn ?? false) || column.id === fixedColumns.first || column.id === fixedColumns.actions,
     }))
 
   function applyCustomizerItems(items: ColumnCustomizerItem[]) {
@@ -288,8 +316,8 @@ export function Table<TData>({
     // Locked columns at the head of the list are the table's anchor, and the selection checkbox
     // sits left of everything. Both have to be frozen ahead of whatever the user pins, or pinning
     // would slide a column in front of the one the panel shows first — the panel and the grid
-    // would then disagree about column order. Applied only when something is actually pinned, so
-    // an unpinned table keeps its natural layout and draws no freeze line.
+    // would then disagree about column order. Only written when the user pinned something: the
+    // always-frozen columns are added on top of this by `effectivePinning`.
     const leadingLocked: string[] = []
     for (const item of items) {
       if (!item.locked) break
@@ -315,18 +343,21 @@ export function Table<TData>({
   // resizing is on, so it only matches reality in the fixed-layout case. Header cell `offsetWidth`
   // is correct either way — a sticky element's *width* is unaffected by being stuck, only its
   // position is, so this stays right even while the table is scrolled.
-  const pinnedLeftIds = columnPinning.left ?? []
+  const pinnedLeftIds = effectivePinning.left ?? []
+  const pinnedRightIds = effectivePinning.right ?? []
   const columnSizing = table.getState().columnSizing
   useLayoutEffect(() => {
-    if (pinnedLeftIds.length === 0) {
-      setPinnedOffsets((prev) => (Object.keys(prev).length === 0 ? prev : {}))
-      return
-    }
-    let offset = 0
     const next: Record<string, number> = {}
+    let leftOffset = 0
     for (const column of table.getLeftVisibleLeafColumns()) {
-      next[column.id] = offset
-      offset += headerRefs.current.get(column.id)?.offsetWidth ?? 0
+      next[column.id] = leftOffset
+      leftOffset += headerRefs.current.get(column.id)?.offsetWidth ?? 0
+    }
+    // Right-pinned offsets count from the right edge, so walk the block from its far end.
+    let rightOffset = 0
+    for (const column of [...table.getRightVisibleLeafColumns()].reverse()) {
+      next[column.id] = rightOffset
+      rightOffset += headerRefs.current.get(column.id)?.offsetWidth ?? 0
     }
     setPinnedOffsets((prev) => {
       const keys = Object.keys(next)
@@ -334,71 +365,64 @@ export function Table<TData>({
       return same ? prev : next
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pinnedLeftIds.join(','), columnVisibility, columnOrder, columnSizing, size, rows.length])
+  }, [pinnedLeftIds.join(','), pinnedRightIds.join(','), columnVisibility, columnOrder, columnSizing, size, rows.length])
 
   function pinnedStyle(column: Column<TData, unknown>): CSSProperties | undefined {
-    if (column.getIsPinned() !== 'left') return undefined
-    return { position: 'sticky', left: pinnedOffsets[column.id] ?? 0, zIndex: 2 }
+    const pinned = column.getIsPinned()
+    if (!pinned) return undefined
+    return { position: 'sticky', [pinned]: pinnedOffsets[column.id] ?? 0, zIndex: 2 }
   }
 
-  /** The freeze line: a heavier border marking where the pinned block ends. */
-  function pinnedBorderClass(column: Column<TData, unknown>) {
-    return column.getIsPinned() === 'left' && column.getIsLastColumn('left')
-      ? 'border-r-2 border-r-[var(--color-border-strong)]'
-      : undefined
-  }
-
-  // A native, document-level *capture* listener — not a React onKeyDownCapture prop on the cell.
-  // A JSX capture handler on the <td> is not reliably invoked when a nested interactive control
-  // (e.g. Radix's Checkbox) attaches its own native listener directly to its DOM node: that
-  // listener can win the race and stopPropagation() before it ever reaches React's per-fiber
-  // capture simulation. Attaching directly on `document` with `capture: true` is the true
-  // outermost native capture listener, so it always runs first regardless of what any descendant
-  // does — Home/End/Arrow keys should always mean "move the active grid cell" in this table.
+  // Tracks the grid's horizontal scroll (its wrapper is the scroll container, one level up).
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (!NAV_KEYS.has(event.key)) return
-      const active = document.activeElement
-      if (!containerRef.current?.contains(active)) return
-      // The toolbar (filter chips, Columns) and the bulk action bar live inside the container but
-      // aren't part of the grid: arrow keys there belong to their own controls, not cell navigation.
-      if (active?.closest('[data-table-toolbar], [data-table-bulk-actions]')) return
-
-      const current = active?.closest<HTMLTableCellElement>('td[data-row][data-col]')
-      const row = Number(current?.dataset.row ?? 0)
-      const col = Number(current?.dataset.col ?? 0)
-      let nextRow = row
-      let nextCol = col
-      switch (event.key) {
-        case 'ArrowUp':
-          nextRow = Math.max(0, row - 1)
-          break
-        case 'ArrowDown':
-          nextRow = Math.min(rows.length - 1, row + 1)
-          break
-        case 'ArrowLeft':
-          nextCol = Math.max(0, col - 1)
-          break
-        case 'ArrowRight':
-          nextCol = Math.min(colCount - 1, col + 1)
-          break
-        case 'Home':
-          nextCol = 0
-          break
-        case 'End':
-          nextCol = colCount - 1
-          break
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-      setFocusedCell({ row: nextRow, col: nextCol })
-      cellRefs.current.get(`${nextRow}-${nextCol}`)?.focus()
+    const grid = containerRef.current?.querySelector<HTMLElement>('[role="grid"]')
+    const scroller = grid?.parentElement
+    if (!grid || !scroller) return undefined
+    function update() {
+      const fromStart = scroller!.scrollLeft > 0
+      const toEnd = scroller!.scrollLeft + scroller!.clientWidth < scroller!.scrollWidth - 1
+      setScrolled((prev) => (prev.fromStart === fromStart && prev.toEnd === toEnd ? prev : { fromStart, toEnd }))
     }
+    update()
+    scroller.addEventListener('scroll', update, { passive: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(scroller)
+    observer.observe(grid)
+    return () => {
+      scroller.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+  }, [])
 
-    document.addEventListener('keydown', handleKeyDown, true)
-    return () => document.removeEventListener('keydown', handleKeyDown, true)
-  }, [rows.length, colCount])
+  /** The freeze edge: a soft shadow on the frozen block's outer side, shown only while content is
+   * scrolled away behind it. */
+  function pinnedBorderClass(column: Column<TData, unknown>) {
+    const pinned = column.getIsPinned()
+    if (pinned === 'left' && column.getIsLastColumn('left') && scrolled.fromStart) {
+      return 'shadow-[4px_0_6px_-4px_rgba(0,0,0,0.08)]'
+    }
+    if (pinned === 'right' && column.getIsFirstColumn('right') && scrolled.toEnd) {
+      return 'shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]'
+    }
+    return undefined
+  }
+
+  // Keyboard navigation, range selection and copy — see useGridKeyboard.ts for the model. The
+  // range is dropped whenever the visible rows or columns change underneath it.
+  const rangeKey = [
+    table.getState().pagination.pageIndex,
+    JSON.stringify(sorting),
+    JSON.stringify(columnFilters),
+    rows.length,
+    colCount,
+  ].join('|')
+  const { isInRange, handleCellFocus } = useGridKeyboard({
+    containerRef,
+    rowCount: rows.length,
+    colCount,
+    skipCol: enableRowSelection ? 0 : undefined,
+    resetKey: rangeKey,
+  })
 
   // One shared defaults object per column — computed once per render here, rather than a fresh
   // object literal at each <td> below, so every cell in the same column gets the same
@@ -439,10 +463,14 @@ export function Table<TData>({
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
+              {headerGroup.headers.map((header, headerIndex) => (
                 <TableHead
                   key={header.id}
                   role="columnheader"
+                  // Reachable with the arrow keys from the first row (useGridKeyboard.ts); not a tab
+                  // stop itself — the sort/filter buttons inside it already are.
+                  tabIndex={-1}
+                  data-header-col={headerIndex}
                   ref={(el) => {
                     if (el) headerRefs.current.set(header.column.id, el)
                     else headerRefs.current.delete(header.column.id)
@@ -540,7 +568,12 @@ export function Table<TData>({
               <TableRow
                 key={row.id}
                 role="row"
-                className={cn(row.getIsSelected() && 'bg-[var(--color-primary-subtle)]')}
+                // The whole row tints on hover. A selected row keeps its own colour so selection
+                // stays legible while the pointer crosses it. Pinned cells use bg-inherit, so
+                // they pick this up too.
+                className={cn(
+                  row.getIsSelected() ? 'bg-[var(--color-primary-subtle)]' : 'hover:bg-[var(--color-table-row-hover)]',
+                )}
               >
                 {row.getVisibleCells().map((cell, colIndex) => {
                   const canWrap = cell.column.columnDef.meta?.textWrap
@@ -550,19 +583,19 @@ export function Table<TData>({
                   return (
                     <TableCell
                       key={cell.id}
-                      ref={(el) => {
-                        if (el) cellRefs.current.set(`${rowIndex}-${colIndex}`, el)
-                        else cellRefs.current.delete(`${rowIndex}-${colIndex}`)
-                      }}
                       role="gridcell"
                       data-row={rowIndex}
                       data-col={colIndex}
+                      // Inline-control cells get their selected border from tokens.css.
+                      data-fill-cell={cell.column.columnDef.meta?.fillCell ? '' : undefined}
                       tabIndex={focusedCell.row === rowIndex && focusedCell.col === colIndex ? 0 : -1}
-                      onFocus={() =>
+                      aria-selected={isInRange(rowIndex, colIndex) || undefined}
+                      onFocus={() => {
+                        handleCellFocus()
                         setFocusedCell((prev) =>
                           prev.row === rowIndex && prev.col === colIndex ? prev : { row: rowIndex, col: colIndex },
                         )
-                      }
+                      }}
                       style={{
                         ...(enableColumnResizing ? { width: cell.column.getSize() } : undefined),
                         ...pinnedStyle(cell.column),
@@ -573,13 +606,12 @@ export function Table<TData>({
                         cell.column.columnDef.meta?.width,
                         cell.column.columnDef.meta?.fillCell && 'p-0',
                         // bg-inherit picks up the row's hover/selected colour; TableRow's base
-                        // bg-card keeps scrolled content from showing through when unstyled.
-                        cell.column.getIsPinned() === 'left' && 'bg-inherit',
-                        // The table highlights the single cell under the pointer — not its row or
-                        // column. After bg-inherit on purpose: a pinned cell inherits the row's
-                        // background and the tint has to win over it. A selected row keeps its own
-                        // colour, so selection stays legible while the pointer crosses it.
-                        !row.getIsSelected() && 'hover:bg-[var(--color-table-cell-hover)]',
+                        // bg-card keeps scrolled content from showing through a frozen cell.
+                        cell.column.getIsPinned() && 'bg-inherit',
+                        // A Shift+arrow range. Opaque (mixed into the card colour) so a frozen cell
+                        // still hides what scrolls beneath it; after bg-inherit so it wins there.
+                        isInRange(rowIndex, colIndex) &&
+                          'bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-card))]',
                         // Aligns raw string/number cell content directly; a flex-based cell
                         // (PlainTextCell, AmountCell, …) positions its own content via CELL_JUSTIFY
                         // instead — text-align has no effect on a flex child's placement, so the

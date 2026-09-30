@@ -134,6 +134,40 @@
   }
 }
 
+/* Toast rise-and-fade in, and the reverse on dismissal. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Tooltip fade-in. Radix stamps data-state on the content; a tooltip is small and near its trigger,
+ * so it only fades. */
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Respect reduced-motion: same keyframe names, no movement or fade. */
 @media (prefers-reduced-motion: reduce) {
   @keyframes popover-in {
@@ -164,4 +198,41 @@
       transform: none;
     }
   }
+
+  @keyframes toast-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes toast-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes tooltip-in {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Scrollable dropdown lists (Figma: Scroll-area / Scrollbar): a thin track with a tinted thumb. */
+@utility dropdown-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }

@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ColumnDef } from '@tanstack/react-table'
 import { expect, screen, waitFor, within } from 'storybook/test'
@@ -11,6 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { BulkActionBar } from '@/components/BulkActionBar'
+import { FilterBar, useTableFilterState } from '@/components/Filters'
+import type { FilterField, FilterOption } from '@/components/Filters'
+import { createFakeLoader, createFakeResolver } from '@/components/Filters/bankTransactions.fixtures'
 import { Table } from './Table'
 import { columnHeader, sortableHeader, dateColumnHeader } from './columnHeader'
 import { DateCell } from './cells/DateCell'
@@ -63,22 +68,22 @@ export const BasicTable: Story = {
   },
 }
 
-/** Hovering tints the single cell under the pointer — not its row, and not its column. */
-export const CellHover: Story = {
+/** Hovering tints the whole row under the pointer — every cell in it, not just the one hovered. */
+export const RowHover: Story = {
   render: () => <Table columns={basicColumns} data={PEOPLE} enableSorting={false} />,
   play: async ({ canvas }) => {
     const grid = canvas.getByRole('grid')
-    const cell = (row: number, col: number) =>
-      grid.querySelector(`td[data-row="${row}"][data-col="${col}"]`) as HTMLElement
+    const row = (index: number) =>
+      grid.querySelector(`td[data-row="${index}"][data-col="0"]`)?.closest('tr') as HTMLElement
 
     // Real CSS :hover isn't triggerable via synthetic events even in real-browser Vitest mode
     // (Chromium only updates :hover from genuine pointer input), so this checks the styling hook —
-    // every body cell carries the tint on its own :hover, and nothing tints a whole row or column.
+    // the tint lives on the row itself, and no individual cell carries its own hover tint.
     // The visual result is confirmed manually.
-    await expect(cell(0, 1).className).toContain('hover:bg-[var(--color-table-cell-hover)]')
-    await expect(cell(2, 0).className).toContain('hover:bg-[var(--color-table-cell-hover)]')
-    const row = cell(0, 0).closest('tr') as HTMLElement
-    await expect(row.className).not.toContain('hover:bg-')
+    await expect(row(0).className).toContain('hover:bg-[var(--color-table-row-hover)]')
+    await expect(row(2).className).toContain('hover:bg-[var(--color-table-row-hover)]')
+    const cell = grid.querySelector('td[data-row="0"][data-col="1"]') as HTMLElement
+    await expect(cell.className).not.toContain('hover:bg-')
   },
 }
 
@@ -590,7 +595,202 @@ export const KeyboardNavigation: Story = {
 
     await userEvent.keyboard('{ArrowDown}')
     await waitFor(() => expect(document.activeElement).toBe(cells[3]))
+
+    // Home / End: first / last column of the row. Ctrl+Home / Ctrl+End: first / last row.
+    await userEvent.keyboard('{Home}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[2]))
+    await userEvent.keyboard('{End}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[3]))
+    await userEvent.keyboard('{Control>}{End}{/Control}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[5]))
+    await userEvent.keyboard('{Control>}{Home}{/Control}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[1]))
+
+    // PgDn / PgUp jump ten rows, clamped to the ends of the page.
+    await userEvent.keyboard('{PageDown}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[5]))
+    await userEvent.keyboard('{PageUp}')
+    await waitFor(() => expect(document.activeElement).toBe(cells[1]))
   },
+}
+
+/** Shift+arrows select a rectangle of cells, tinted and marked `aria-selected`. Esc, a plain arrow
+ *  or a click drops it. Ctrl/Cmd+C copies the range as tab-separated text (paste into a
+ *  spreadsheet) — that part is the browser's own `copy` event, so it isn't asserted here. */
+export const KeyboardRangeSelection: Story = {
+  render: () => <Table columns={basicColumns} data={PEOPLE} enableSorting={false} />,
+  play: async ({ canvas, userEvent }) => {
+    const cells = canvas.getAllByRole('gridcell')
+    const selected = () => canvas.getAllByRole('gridcell').filter((cell) => cell.getAttribute('aria-selected') === 'true')
+
+    cells[0].focus()
+    await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowDown}{/Shift}')
+    await waitFor(() => expect(selected()).toHaveLength(4))
+    await expect(selected()).toEqual([cells[0], cells[1], cells[2], cells[3]])
+
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(selected()).toHaveLength(0))
+
+    // A plain arrow also drops it.
+    await userEvent.keyboard('{Shift>}{ArrowDown}{/Shift}')
+    await waitFor(() => expect(selected().length).toBeGreaterThan(1))
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() => expect(selected()).toHaveLength(0))
+  },
+}
+
+/** The header row is part of the keyboard model: ArrowUp from the first row reaches it, Left/Right
+ *  move along it, ArrowDown drops back into the grid. Enter sorts the column; Space opens its
+ *  filter. */
+export const KeyboardHeaders: Story = {
+  render: () => <Table columns={ledgerDateColumns} data={LEDGER_ENTRIES} />,
+  play: async ({ canvas, userEvent }) => {
+    const cells = canvas.getAllByRole('gridcell')
+    cells[0].focus()
+    await userEvent.keyboard('{ArrowUp}')
+    const dateHeader = canvas.getByRole('columnheader', { name: /Posted on/ })
+    await waitFor(() => expect(document.activeElement).toBe(dateHeader))
+
+    // Enter sorts: ascending puts the oldest entry (Dec 2025) first.
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('gridcell')[0]).toHaveTextContent('22 Dec 2025'))
+
+    // Space opens the column's filter.
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeVisible())
+    await userEvent.keyboard('{Escape}')
+
+    dateHeader.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() => expect(document.activeElement).toBe(canvas.getByRole('columnheader', { name: /Narration/ })))
+    await userEvent.keyboard('{ArrowDown}')
+    await waitFor(() => expect(document.activeElement).toBe(canvas.getAllByRole('gridcell')[1]))
+  },
+}
+
+/** Editing is a separate mode: Enter on a cell puts focus in its field, where arrows, Home/End and
+ *  typing belong to the field. Enter accepts; Esc cancels and restores what was there. */
+export const KeyboardEditing: Story = {
+  render: () => <Table columns={editableColumns} data={MAPPING_ROWS} enableSorting={false} />,
+  play: async ({ canvas, userEvent }) => {
+    const narrationCell = canvas.getAllByRole('gridcell')[5] // date, voucher no., 3 dropdowns, narration
+    const narration = canvas.getAllByRole('textbox', { name: 'Narration' })[0] as HTMLInputElement
+    const original = narration.value
+
+    narrationCell.focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(document.activeElement).toBe(narration))
+
+    // Arrow keys move the caret, not the active cell.
+    await userEvent.keyboard('{ArrowLeft}{End}!')
+    await expect(document.activeElement).toBe(narration)
+    await expect(narration.value).toBe(`${original}!`)
+
+    // Esc cancels: value restored, focus back on the cell.
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(document.activeElement).toBe(narrationCell))
+    await expect(narration.value).toBe(original)
+
+    // Enter accepts: value kept, focus back on the cell. (A second row, because user-event keeps its
+    // own copy of a field's value that a programmatic restore like Esc's doesn't update.)
+    const secondCell = canvas.getAllByRole('gridcell')[12]
+    const second = canvas.getAllByRole('textbox', { name: 'Narration' })[1] as HTMLInputElement
+    const secondOriginal = second.value
+    secondCell.focus()
+    await userEvent.keyboard('{Enter}{End}?{Enter}')
+    await waitFor(() => expect(document.activeElement).toBe(secondCell))
+    await expect(second.value).toBe(`${secondOriginal}?`)
+  },
+}
+
+/** Space (or Enter) on a cell presses the control inside it: a checkbox toggles, a dropdown opens,
+ *  a link follows. */
+export const KeyboardActivatesControls: Story = {
+  render: () => <Table columns={editableColumns} data={MAPPING_ROWS} enableSorting={false} enableRowSelection />,
+  play: async ({ canvas, userEvent }) => {
+    canvas.getAllByRole('gridcell')[0].focus()
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(canvas.getAllByRole('checkbox', { name: 'Select row' })[0]).toBeChecked())
+
+    // The Ledger dropdown is the fourth cell in the row (checkbox, date, voucher no., ledger).
+    canvas.getAllByRole('gridcell')[3].focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByPlaceholderText('Search…')).toBeVisible())
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByPlaceholderText('Search…')).not.toBeInTheDocument())
+
+    // Inside the open panel: ArrowDown highlights the next option, Enter picks it and closes the
+    // panel, and focus lands back in the cell so the grid keys work again.
+    canvas.getAllByRole('gridcell')[3].focus()
+    await userEvent.keyboard('{Enter}{ArrowDown}{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('combobox', { name: 'Ledger' })[0]).toHaveTextContent('Purchase'))
+    await expect(screen.queryByPlaceholderText('Search…')).not.toBeInTheDocument()
+    await userEvent.keyboard('{ArrowDown}')
+    // One row down from the Ledger cell (3 columns in, 8 cells per row): checkbox + 7 columns.
+    await waitFor(() => expect(document.activeElement).toBe(canvas.getAllByRole('gridcell')[11]))
+  },
+}
+
+const KEYBOARD_SHORTCUTS: Array<{ action: string; keys: string[][] }> = [
+  { action: 'Move between cells', keys: [['↑'], ['↓'], ['←'], ['→']] },
+  { action: 'Select a range of cells', keys: [['Shift', '↑ ↓ ← →']] },
+  { action: 'Copy the selected range', keys: [['Ctrl / Cmd', 'C']] },
+  { action: 'First / last column', keys: [['Home'], ['End']] },
+  { action: 'First / last row', keys: [['Ctrl', 'Home'], ['Ctrl', 'End']] },
+  { action: 'Jump 10 rows', keys: [['PgUp'], ['PgDn']] },
+  { action: 'Reach the column headers', keys: [['↑ from the first row']] },
+  { action: 'Sort / filter a column (on a header)', keys: [['Enter'], ['Space']] },
+  { action: 'Edit a cell / press its control', keys: [['Enter'], ['Space']] },
+  { action: 'Accept an edit', keys: [['Enter']] },
+  { action: 'Cancel an edit, or drop a range', keys: [['Esc']] },
+]
+
+/** Reference for the keyboard model — see `useGridKeyboard.ts`. Shortcuts stand down while typing
+ *  in a text field, except Enter (accept) and Esc (cancel). */
+export const KeyboardShortcuts: Story = {
+  render: () => (
+    <ul style={{ margin: 0, padding: 0, listStyle: 'none', maxWidth: 520, fontFamily: 'var(--font-family-primary)' }}>
+      {KEYBOARD_SHORTCUTS.map((shortcut) => (
+        <li
+          key={shortcut.action}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            padding: '12px 0',
+            borderBottom: '1px solid var(--color-table-border)',
+            color: 'var(--color-text)',
+          }}
+        >
+          <span>{shortcut.action}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {shortcut.keys.map((combo, comboIndex) => (
+              <span key={combo.join('+')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {comboIndex > 0 && <span style={{ color: 'var(--color-text-secondary)' }}>/</span>}
+                {combo.map((key, keyIndex) => (
+                  <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {keyIndex > 0 && <span style={{ color: 'var(--color-text-secondary)' }}>+</span>}
+                    <kbd
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        background: 'var(--color-bg-subtle)',
+                        color: 'var(--color-text-secondary)',
+                        font: 'inherit',
+                      }}
+                    >
+                      {key}
+                    </kbd>
+                  </span>
+                ))}
+              </span>
+            ))}
+          </span>
+        </li>
+      ))}
+    </ul>
+  ),
 }
 
 export const ColumnResizing: Story = {
@@ -935,7 +1135,9 @@ export const ActiveCell: Story = {
     const cells = canvas.getAllByRole('gridcell')
     await userEvent.tab()
     await expect(document.activeElement).toBe(cells[0])
-    await expect(getComputedStyle(cells[0]).outlineStyle).toBe('solid')
+    // The ring is a 1px border + shadow on the grid lines (tokens.css), not an `outline`.
+    await expect(getComputedStyle(cells[0]).borderBottomWidth).toBe('1px')
+    await expect(getComputedStyle(cells[0]).boxShadow).not.toBe('none')
   },
 }
 
@@ -1120,5 +1322,372 @@ export const WithNumberCell: Story = {
     await expect(canvas.getByText('128')).toBeVisible()
     await expect(canvas.getByText('67.5')).toBeVisible()
     await expect(canvas.queryByText(/₹/)).not.toBeInTheDocument()
+  },
+}
+
+// --- Example: every feature working together --------------------------------------------------
+// One realistic table with the lot: toolbar filters (quick chips + All filters + a date filter in
+// the column header, all driving the same state), sorting, column resize / show-hide / reorder /
+// pin, row selection with a bulk action bar, inline-editable cells, every cell type, empty values,
+// disabled cells, tooltips, wrapped text, row actions, pagination and an empty state. Placeholder
+// data throughout — the shape matters here, not the words.
+
+type OrderStatus = 'delivered' | 'processing' | 'pending' | 'cancelled' | 'failed'
+
+type Order = {
+  id: string
+  orderedOn: Date
+  orderNo: string
+  customer: string
+  owner: string
+  category: string
+  description: string
+  notes: string
+  status: OrderStatus
+  fulfilled: number | null
+  quantity: number | null
+  amount: number
+  sync: SyncStatus | null
+}
+
+// Pinned, not `new Date()`: date presets are reckoned from "today", so a clock-derived value would
+// make the story's assertions drift as the calendar moves. Tuesday 15 Sep 2026.
+const ORDERS_TODAY = new Date(2026, 8, 15)
+
+const ORDER_CUSTOMERS: FilterOption[] = [
+  { value: 'c_acme', label: 'Acme Corp' },
+  { value: 'c_globex', label: 'Globex' },
+  { value: 'c_initech', label: 'Initech' },
+  { value: 'c_umbrella', label: 'Umbrella Ltd' },
+  { value: 'c_hooli', label: 'Hooli' },
+  { value: 'c_stark', label: 'Stark Supply' },
+]
+
+const ORDER_REGIONS: Record<string, string> = {
+  c_acme: 'North region',
+  c_globex: 'East region',
+  c_initech: 'West region',
+  c_umbrella: 'South region',
+  c_hooli: 'North region',
+  c_stark: 'East region',
+}
+
+const ORDER_OWNERS: FilterOption[] = [
+  { value: 'o_jane', label: 'Jane Doe' },
+  { value: 'o_john', label: 'John Roe' },
+  { value: 'o_sam', label: 'Sam Lee' },
+  { value: 'o_alex', label: 'Alex Kim' },
+]
+
+const ORDER_CATEGORIES: FilterOption[] = [
+  { value: 'hardware', label: 'Hardware' },
+  { value: 'software', label: 'Software' },
+  { value: 'services', label: 'Services' },
+]
+
+const ORDER_STATUS_OPTIONS: Array<FilterOption & { value: OrderStatus }> = [
+  { value: 'delivered', label: 'Delivered', color: 'positive' },
+  { value: 'processing', label: 'Processing', color: 'information' },
+  { value: 'pending', label: 'Pending', color: 'notice' },
+  { value: 'cancelled', label: 'Cancelled', color: 'neutral' },
+  { value: 'failed', label: 'Failed', color: 'negative' },
+]
+
+const ORDER_FIELDS: FilterField[] = [
+  {
+    key: 'customer',
+    label: 'Customer',
+    type: 'entity_ref',
+    quickFilter: true,
+    loadOptions: createFakeLoader(ORDER_CUSTOMERS),
+    resolveOptions: createFakeResolver(ORDER_CUSTOMERS),
+  },
+  { key: 'status', label: 'Status', type: 'enum', quickFilter: true, options: ORDER_STATUS_OPTIONS },
+  { key: 'owner', label: 'Owner', type: 'enum', options: ORDER_OWNERS },
+  { key: 'orderedOn', label: 'Date', type: 'date', maxDate: ORDERS_TODAY },
+]
+
+const STATUS_CYCLE: OrderStatus[] = ['delivered', 'processing', 'pending', 'delivered', 'cancelled', 'processing', 'failed', 'delivered']
+const SYNC_CYCLE: SyncStatus[] = ['synced', 'syncing', 'not-synced', 'sync-failed']
+const DESCRIPTIONS = [
+  'Quarterly restock of workstation peripherals, shipped in two consignments to the main warehouse',
+  'Annual licence renewal covering all seats, invoiced against the master agreement',
+  'On-site installation and configuration support, including a follow-up training session',
+]
+
+const ORDERS: Order[] = Array.from({ length: 26 }, (_, i) => {
+  const status = STATUS_CYCLE[i % STATUS_CYCLE.length]
+  return {
+    id: `ord_${i + 1}`,
+    orderedOn: new Date(2026, 8, 15 - i * 6),
+    orderNo: `ORD-${1001 + i}`,
+    customer: ORDER_CUSTOMERS[i % ORDER_CUSTOMERS.length].value,
+    owner: ORDER_OWNERS[i % ORDER_OWNERS.length].value,
+    category: ORDER_CATEGORIES[i % ORDER_CATEGORIES.length].value,
+    description: DESCRIPTIONS[i % DESCRIPTIONS.length],
+    notes: i % 4 === 1 ? '' : 'Confirm delivery window',
+    status,
+    // Each cell type gets a null somewhere, so the empty-value treatment shows up in context.
+    fulfilled: status === 'cancelled' ? null : status === 'delivered' ? 100 : status === 'pending' ? 0 : 20 + ((i * 13) % 60),
+    quantity: i % 7 === 3 ? null : 5 + ((i * 11) % 40),
+    amount: 1200 + Math.round(((i * 7919) % 18000) / 50) * 50,
+    sync: status === 'cancelled' ? null : SYNC_CYCLE[i % SYNC_CYCLE.length],
+  }
+})
+
+const ORDERS_PAGE_SIZE = 10
+
+function OrdersExample() {
+  const [orders, setOrders] = useState(ORDERS)
+  const filters = useTableFilterState(ORDER_FIELDS)
+
+  const patchOrder = (id: string, patch: Partial<Order>) =>
+    setOrders((previous) => previous.map((order) => (order.id === id ? { ...order, ...patch } : order)))
+
+  // `setOrders` is stable, so the column defs are built once; each cell reads its row's own data.
+  const columns = useMemo<ColumnDef<Order, any>[]>(
+    () => [
+      {
+        accessorKey: 'orderedOn',
+        header: dateColumnHeader<Order>('Order date', { today: ORDERS_TODAY }),
+        sortingFn: 'datetime',
+        filterFn: 'dateRange',
+        meta: { title: 'Order date', filterType: 'date', lockColumn: true },
+        size: 150,
+        cell: ({ row }) => <DateCell value={row.original.orderedOn} />,
+      },
+      {
+        accessorKey: 'orderNo',
+        header: columnHeader<Order>('Order no.', { sortable: true }),
+        meta: { title: 'Order no.' },
+        size: 120,
+        cell: ({ row }) => (
+          <LinkCell
+            isDisabled={row.original.status === 'cancelled'}
+            tooltip={row.original.status === 'cancelled' ? "Cancelled orders can't be opened" : undefined}
+          >
+            {row.original.orderNo}
+          </LinkCell>
+        ),
+      },
+      {
+        accessorKey: 'customer',
+        header: columnHeader<Order>('Customer', { sortable: true }),
+        filterFn: 'anyOf',
+        meta: { title: 'Customer' },
+        size: 190,
+        cell: ({ row }) => (
+          <SubTextCell subText={ORDER_REGIONS[row.original.customer]}>
+            {ORDER_CUSTOMERS.find((option) => option.value === row.original.customer)?.label}
+          </SubTextCell>
+        ),
+      },
+      {
+        accessorKey: 'owner',
+        header: columnHeader<Order>('Owner', { sortable: true }),
+        filterFn: 'anyOf',
+        meta: { title: 'Owner' },
+        size: 150,
+        cell: ({ row }) => <AvatarCell name={ORDER_OWNERS.find((option) => option.value === row.original.owner)?.label} />,
+      },
+      {
+        accessorKey: 'category',
+        header: columnHeader<Order>('Category'),
+        meta: { title: 'Category', fillCell: true },
+        size: 150,
+        cell: ({ row }) => (
+          <DropdownCell
+            accessibilityLabel="Category"
+            options={ORDER_CATEGORIES}
+            value={row.original.category}
+            onChange={(category) => patchOrder(row.original.id, { category })}
+            isDisabled={row.original.status === 'cancelled'}
+          />
+        ),
+      },
+      {
+        accessorKey: 'description',
+        header: columnHeader<Order>('Description'),
+        // The header's "⋮" menu switches this column between clipped and wrapped text.
+        meta: { title: 'Description', textWrap: true },
+        size: 240,
+        cell: ({ row }) => <PlainTextCell>{row.original.description}</PlainTextCell>,
+      },
+      {
+        accessorKey: 'notes',
+        header: columnHeader<Order>('Notes'),
+        meta: { title: 'Notes', fillCell: true },
+        size: 200,
+        cell: ({ row }) => (
+          <InputCell
+            accessibilityLabel="Notes"
+            placeholder="Add a note"
+            value={row.original.notes}
+            onChange={(event) => patchOrder(row.original.id, { notes: event.target.value })}
+            isDisabled={row.original.status === 'cancelled'}
+          />
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: columnHeader<Order>('Status'),
+        filterFn: 'anyOf',
+        meta: { title: 'Status' },
+        size: 140,
+        cell: ({ row }) => {
+          const option = ORDER_STATUS_OPTIONS.find((candidate) => candidate.value === row.original.status)
+          return (
+            <StatusCell
+              color={option?.color}
+              info={row.original.status === 'failed' ? "This order couldn't be processed — retry from the row menu." : undefined}
+            >
+              {option?.label}
+            </StatusCell>
+          )
+        },
+      },
+      {
+        accessorKey: 'fulfilled',
+        header: columnHeader<Order>('Fulfilled'),
+        meta: { title: 'Fulfilled' },
+        size: 160,
+        cell: ({ row }) => (
+          <ProgressBarCell
+            label={row.original.quantity == null ? null : `${row.original.quantity} units`}
+            percent={row.original.fulfilled}
+          />
+        ),
+      },
+      {
+        accessorKey: 'quantity',
+        header: columnHeader<Order>('Quantity', { sortable: true }),
+        meta: { title: 'Quantity', align: 'end' },
+        size: 120,
+        cell: ({ row }) => <NumberCell value={row.original.quantity} />,
+      },
+      {
+        accessorKey: 'amount',
+        header: columnHeader<Order>('Amount', { sortable: true }),
+        meta: { title: 'Amount', align: 'end' },
+        size: 140,
+        cell: ({ row }) => <AmountCell amount={row.original.amount} />,
+      },
+      {
+        accessorKey: 'sync',
+        header: columnHeader<Order>('Sync status'),
+        meta: { title: 'Sync status' },
+        size: 140,
+        cell: ({ row }) => <SyncStatusCell status={row.original.sync} />,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        meta: { title: 'Actions', width: 'w-20', align: 'end', lockColumn: true },
+        enableResizing: false,
+        size: 80,
+        cell: ({ row }) => (
+          <ActionsCell>
+            <button type="button" className={iconButtonClasses} aria-label="Upload attachment">
+              <Upload size={14} />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className={iconButtonClasses} aria-label="Row actions">
+                  <MoreHorizontal size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <Check size={14} />
+                  Mark as reviewed
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => setOrders((previous) => previous.filter((order) => order.id !== row.original.id))}
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ActionsCell>
+        ),
+      },
+    ],
+    [],
+  )
+
+  return (
+    <Table
+      columns={columns}
+      data={orders}
+      pageSize={ORDERS_PAGE_SIZE}
+      enableRowSelection
+      enableColumnResizing
+      enableColumnCustomization
+      columnFilters={filters.columnFilters}
+      onColumnFiltersChange={filters.onColumnFiltersChange}
+      toolbar={
+        <FilterBar fields={ORDER_FIELDS} value={filters.values} onChange={filters.setValues} today={ORDERS_TODAY} />
+      }
+      emptyState="No orders match these filters"
+      renderBulkActions={({ selectedRows, selectedCount, totalCount, selectAll, clearSelection }) => (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          totalCount={totalCount}
+          onSelectAll={selectAll}
+          onClearSelection={clearSelection}
+          // Picking a value applies it to every selected row straight away; the field then resets
+          // to its placeholder because no `value` is held.
+          fields={[
+            { key: 'category', label: 'Category', options: ORDER_CATEGORIES },
+            { key: 'owner', label: 'Owner', options: ORDER_OWNERS },
+          ]}
+          onFieldChange={(key, value) =>
+            setOrders((previous) => previous.map((order) => (selectedRows.includes(order) ? { ...order, [key]: value } : order)))
+          }
+          actions={[
+            { label: 'Export', onClick: () => {} },
+            {
+              label: 'Mark delivered',
+              variant: 'primary',
+              onClick: () =>
+                setOrders((previous) =>
+                  previous.map((order) => (selectedRows.includes(order) ? { ...order, status: 'delivered', fulfilled: 100 } : order)),
+                ),
+            },
+          ]}
+          // Confirming the delete (and excluding rows that can't be deleted) is the caller's job.
+          onDelete={() => {
+            setOrders((previous) => previous.filter((order) => !selectedRows.includes(order)))
+            clearSelection()
+          }}
+        />
+      )}
+    />
+  )
+}
+
+export const Example: Story = {
+  render: () => <OrdersExample />,
+  play: async ({ canvas, userEvent }) => {
+    // Pagination: one page of the 26 orders, plus the header row.
+    await expect(canvas.getAllByRole('row')).toHaveLength(ORDERS_PAGE_SIZE + 1)
+
+    // All filters → Owner narrows the grid, and the chip for it appears in the toolbar.
+    await userEvent.click(canvas.getByRole('button', { name: 'All filters' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Owner' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Jane Doe' }))
+    const janeOrders = ORDERS.filter((order) => order.owner === 'o_jane').length
+    await waitFor(() => expect(canvas.getAllByRole('row')).toHaveLength(Math.min(janeOrders, ORDERS_PAGE_SIZE) + 1))
+    await userEvent.keyboard('{Escape}')
+
+    // Bulk actions: selecting a row raises the bar, and Delete removes that order.
+    const firstOrderNo = canvas.getAllByRole('gridcell').find((cell) => /^ORD-\d+$/.test(cell.textContent ?? ''))
+    const orderNo = firstOrderNo?.textContent as string
+    await userEvent.click(canvas.getAllByRole('checkbox', { name: 'Select row' })[0])
+    await userEvent.click(await canvas.findByRole('button', { name: 'Delete selected' }))
+    await waitFor(() => expect(canvas.queryByText(orderNo)).not.toBeInTheDocument())
   },
 }

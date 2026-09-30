@@ -32,7 +32,7 @@ const preview: Preview = {
         order: [
           'Introduction',
           'Foundations',
-          ['Colors', 'Icons'],
+          ['Colors', 'Icons', 'Keyboard focus'],
           'Token',
           ['Typography', 'Elevation', 'Border', 'Spacing', 'Breakpoints', 'Motion', 'Theme'],
           'Components',
@@ -44,6 +44,8 @@ const preview: Preview = {
             'SideNav',
             'Drawer',
             'Badge',
+            'Toast',
+            'Tooltip',
             'Input',
             [
               'TextInput',

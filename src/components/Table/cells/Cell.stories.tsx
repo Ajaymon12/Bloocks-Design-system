@@ -220,7 +220,8 @@ export const Gallery: Story = {
     // fine for every other story here — this one specifically re-scopes with `within` so the
     // intent (checking the whole gallery renders) reads the same way at every call site below.
     const canvas = within(canvasElement)
-    await expect(canvas.getByRole('combobox', { name: 'Type' })).toHaveValue('receipt')
+    // A button that opens the option panel, not a native <select>, so it shows text rather than a value.
+    await expect(canvas.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Receipt')
     await expect(canvas.getByRole('textbox', { name: 'Narration' })).toHaveValue('Sale of goods to distributor')
     await expect(canvas.getByText('Bank Ledger')).toBeVisible() // sub-text row
     await expect(canvas.getAllByText('Paid').length).toBeGreaterThan(0) // badge rows

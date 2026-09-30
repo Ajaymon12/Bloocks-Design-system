@@ -5,7 +5,11 @@ export function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
     <div className="w-full overflow-x-auto">
       <table
-        className={cn('w-full caption-bottom border-collapse border-t border-b border-[var(--color-table-border)]', className)}
+        className={cn(// border-separate, not collapse: a collapsed-border table paints no outer box-shadow on its cells
+        // and no cell background over the borders, which frozen (sticky) columns need for their edge
+        // shadow and to stop scrolling content showing through between them. So row dividers are
+        // borders on the cells (below), not on the <tr>.
+        'w-full caption-bottom border-separate border-spacing-0 border-t border-b border-[var(--color-table-border)]', className)}
         {...props}
       />
     </div>
@@ -13,11 +17,11 @@ export function Table({ className, ...props }: ComponentProps<'table'>) {
 }
 
 export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {
-  return <thead className={cn('[&_tr]:border-b [&_tr]:border-[var(--color-table-border)]', className)} {...props} />
+  return <thead className={cn('[&_th]:border-b [&_th]:border-[var(--color-table-border)]', className)} {...props} />
 }
 
 export function TableBody({ className, ...props }: ComponentProps<'tbody'>) {
-  return <tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  return <tbody className={cn('[&_tr:last-child>td]:border-b-0', className)} {...props} />
 }
 
 export function TableFooter({ className, ...props }: ComponentProps<'tfoot'>) {
@@ -36,7 +40,7 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
         // The explicit `bg-card` is load-bearing for column pinning: a sticky pinned <td> uses
         // `bg-inherit` to pick up the row's hover/selected colour, and a transparent row would
         // let horizontally-scrolled content show through underneath it.
-        'group bg-card border-b border-[var(--color-table-border)] transition-colors duration-150 ease-in-out',
+        'group bg-card transition-colors duration-150 ease-in-out',
         className,
       )}
       {...props}
@@ -68,7 +72,7 @@ export function TableCell({ className, ...props }: ComponentProps<'td'>) {
   return (
     <td
       className={cn(
-        'px-[var(--space-12)] py-[var(--space-8)] align-middle border-r border-[var(--color-table-border)] last:border-r-0',
+        'px-[var(--space-12)] py-[var(--space-8)] align-middle border-b border-r border-[var(--color-table-border)] last:border-r-0',
         'text-[length:var(--text-body-4-size)] leading-[var(--text-body-4-line-height)] text-foreground',
         'whitespace-nowrap',
         className,

@@ -325,7 +325,7 @@ export const BaseInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Base
           </div>
         )}
 
-        <div className={wrapperClasses}>
+        <div data-slot="field" className={wrapperClasses}>
           {prefix && (
             <span className="shrink-0 text-[length:var(--text-body-3-size)] text-muted-foreground whitespace-nowrap">
               {prefix}

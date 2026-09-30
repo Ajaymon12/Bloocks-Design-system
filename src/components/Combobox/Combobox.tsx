@@ -273,7 +273,7 @@ export function Combobox({
             id={listId}
             role="listbox"
             aria-label={label ?? accessibilityLabel}
-            className="max-h-[260px] overflow-y-auto p-[var(--space-4)]"
+            className="dropdown-scroll max-h-[260px] overflow-y-auto p-[var(--space-4)]"
           >
             {isLoading ? (
               <div className="flex items-center gap-[var(--space-8)] px-[var(--space-12)] py-[var(--space-12)] text-[length:var(--text-body-3-size)] text-muted-foreground">
@@ -308,12 +308,13 @@ export function Combobox({
                       option.disabled
                         ? 'cursor-not-allowed text-muted-foreground opacity-50'
                         : 'cursor-pointer text-foreground',
-                      isActive && !isSelected && !option.disabled && 'bg-[var(--color-bg-subtle)]',
-                      isSelected && 'bg-[var(--color-primary-subtle)] text-primary font-medium',
+                      isActive && !isSelected && !option.disabled && 'bg-[var(--color-surface-hover)]',
+                      // Figma "Dropdown single select": light primary tint, text stays primary-text, check in primary.
+                      isSelected && 'bg-[var(--color-primary-subtle)]',
                     )}
                   >
                     <span className="truncate">{option.label}</span>
-                    {isSelected && <CircleCheck size={16} className="shrink-0" />}
+                    {isSelected && <CircleCheck size={16} className="shrink-0 text-primary" />}
                   </div>
                 )
               })

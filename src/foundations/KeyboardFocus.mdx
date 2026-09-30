@@ -1,0 +1,36 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { KeyboardFocusGallery } from './KeyboardFocus'
+
+<Meta title="Foundations/Keyboard focus" />
+
+# Keyboard focus
+
+Every interactive component works from the keyboard, and shows where focus is **only when it
+arrived by keyboard** (`:focus-visible`) — clicking a button with the mouse doesn't draw a ring.
+
+**Tab** / **Shift + Tab** move between controls. **Enter** and **Space** press the focused control.
+Inside a composite widget (a table, a calendar, a list, a menu) the **arrow keys** move within it
+and **Esc** closes anything that opened.
+
+## How focus looks
+
+- **Buttons, links, chips, checkboxes, everything else** — one global 2px `--color-primary` ring,
+  2px outside the element (`tokens.css`).
+- **Text fields, selects, comboboxes** — the border turns primary and a soft ring surrounds the
+  field; the browser outline is suppressed (`no-inner-focus-ring`).
+- **Inside anything that clips its children** (chips, scrolling lists, popovers, table cells) — the
+  same ring drawn **inside** the edge (`.focus-inset`), so it is never cut off.
+- **Table cell** — a single 1px primary border on the grid lines, on a cell you reach with the
+  arrow keys and on an editable cell while it's active.
+- **Menu item, list option** — highlighted background, plus the ring.
+- **Search box in a panel** — the row's bottom border turns primary; the field itself has no ring.
+
+Don't remove the ring with `outline-none` on a focusable element: the global rule is unlayered and
+wins anyway, and hiding it would leave keyboard users lost. If a container clips its children, add
+`focus-inset` to it rather than hiding the ring.
+
+## Try it
+
+Click in the box below, then press Tab.
+
+<KeyboardFocusGallery />
