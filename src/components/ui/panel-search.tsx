@@ -19,12 +19,14 @@ export function PanelSearch({ value, onChange, placeholder = 'Search…', inputP
     <div
       className={cn(
         'flex items-center gap-[var(--space-8)] border-b border-[var(--color-table-border)]',
+        // The field has no outline of its own (below), so the row's divider carries the focus cue.
+        'transition-colors duration-150 focus-within:border-b-[var(--color-primary)]',
         'px-[var(--space-12)] py-[var(--space-10)]',
         className,
       )}
     >
-      {/* Deliberately no focus treatment on this row: the panel autofocuses it on open, so a
-          focus ring here would be permanently on and signal nothing. */}
+      {/* No ring on the input itself — the row's bottom border turns primary while it has focus,
+          which reads as "you're typing here" without a box inside the panel. */}
       <Search size={14} className="shrink-0 text-muted-foreground" />
       <input
         value={value}

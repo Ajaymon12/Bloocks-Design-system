@@ -217,7 +217,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </div>
         )}
 
-        <div className={wrapperClasses}>
+        <div data-slot="field" className={wrapperClasses}>
           <select
             ref={mergeRefs(ref, innerRef)}
             id={selectId}

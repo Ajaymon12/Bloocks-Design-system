@@ -1,5 +1,5 @@
 import { forwardRef, useContext } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { ComponentPropsWithoutRef, MouseEvent, ReactNode } from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import type { VariantProps } from 'class-variance-authority'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
@@ -45,7 +45,10 @@ export type ButtonProps = {
   type?: 'button' | 'submit' | 'reset'
   onClick?: (event: MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void
   className?: string
-}
+} & Omit<
+  ComponentPropsWithoutRef<'button'>,
+  'children' | 'className' | 'onClick' | 'type' | 'disabled' | 'aria-label' | 'aria-busy'
+>
 
 export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
@@ -67,6 +70,10 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
       type = 'button',
       onClick,
       className,
+      // Everything else (aria-expanded, data-state, onKeyDown, …) lands on the element. This is what
+      // lets a Radix trigger (`DropdownMenuTrigger` / `PopoverTrigger asChild`) drive a Button:
+      // it injects its open/close handlers and ARIA state as props and needs them on the DOM node.
+      ...rest
     },
     ref,
   ) => {
@@ -118,6 +125,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
     if (asChild) {
       return (
         <Slot
+          {...rest}
           ref={ref as React.Ref<HTMLElement>}
           className={classes}
           aria-label={accessibilityLabel}
@@ -132,6 +140,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
     if (href) {
       return (
         <a
+          {...(rest as ComponentPropsWithoutRef<'a'>)}
           ref={ref as React.Ref<HTMLAnchorElement>}
           className={classes}
           href={disabled ? undefined : href}
@@ -150,6 +159,7 @@ export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPr
 
     return (
       <button
+        {...rest}
         ref={ref as React.Ref<HTMLButtonElement>}
         type={type}
         className={classes}

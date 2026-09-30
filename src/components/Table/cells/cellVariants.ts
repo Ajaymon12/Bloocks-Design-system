@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 // crossed with orthogonal modifiers (an icon, a trailing action, an alignment), which is why this
 // system keeps the existing per-shape cell components instead of a single `type`-switched one, and
 // only pulls the *orthogonal* modifiers (align, tone, size, truncate, empty, icon slots) out as
-// shared props. `Action=Yes` is a hover/selected state, not a property — it's already the cell-hover
+// shared props. `Action=Yes` is a hover/selected state, not a property — it's already the row-hover
 // tint applied in Table.tsx, not modelled here.
 //
 // Figma `Type` → code, so nothing on the sheet is left unaccounted for:
@@ -41,7 +41,7 @@ import type { ReactNode } from 'react'
 // not just dimming), `tooltip` (the same native-title mechanism StatusCell.info already used,
 // generalized), and a plain `<NumberCell>` for a quantity/percent with no currency formatting.
 // "Active cell" is the keyboard-focused one — the global :focus-visible ring, no prop needed.
-// "Hover state" is the existing cell-hover tint (Table.tsx), which shows through Dropdown/Input's
+// "Hover state" is the existing row-hover tint (Table.tsx), which shows through Dropdown/Input's
 // transparent background the same as any other cell. See Table.stories.tsx's `ActiveCell`,
 // `DisabledCells`, `ActionIcons`, `WithTooltip` and `WithNumberCell` stories for each of these.
 

@@ -177,7 +177,7 @@ export function ColumnCustomizerPanel({
       ) : (
         <ul
           className={cn(
-            'm-0 max-h-[320px] list-none overflow-y-auto px-[var(--space-10)] py-[var(--space-4)]',
+            'focus-inset m-0 max-h-[320px] list-none overflow-y-auto px-[var(--space-10)] py-[var(--space-4)]',
             // The spec draws a slim blue-200 thumb rather than the platform default scrollbar.
             '[scrollbar-width:thin] [scrollbar-color:var(--color-popover-border)_transparent]',
           )}

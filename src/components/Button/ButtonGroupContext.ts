@@ -6,6 +6,7 @@ export type ButtonGroupContextValue = {
   size?: ButtonSize
   isDisabled?: boolean
   isFullWidth?: boolean
+  orientation?: 'horizontal' | 'vertical'
 }
 
 // Lives here (co-located with Button) rather than in ButtonGroup/, so Button never has to

@@ -108,7 +108,7 @@
   --color-table-border: var(--palette-neutral-50);
   --color-table-header-bg: var(--palette-blue-50);
   /* Tint for the cell under the pointer — the table highlights single cells, not rows or columns. */
-  --color-table-cell-hover: var(--palette-blue-50);
+  --color-table-row-hover: var(--palette-blue-50);
   /* Floating-panel (Popover/Combobox/FilterDropdown) border — Figma's own dev-mode export for
    * these panels; doesn't match any existing semantic token (checked --color-primary-hover/-active). */
   --color-popover-border: var(--palette-blue-200);
@@ -135,6 +135,15 @@
   /* First real elevation value in the system (Elevation.mdx is still awaiting a full Figma
    * scale) — a two-layer, brand-tinted shadow for floating panels. */
   --shadow-popover: 0 1px 2px 0 rgba(33, 38, 60, 0.06), 0 8px 24px -4px rgba(33, 38, 60, 0.14);
+  /* Toast: a dark navy surface in both themes (Figma keeps it dark on light pages), so these are
+   * defined once here rather than repeated in the dark blocks. */
+  --color-toast-bg: var(--palette-blue-950);
+  --color-toast-border: var(--palette-blue-900);
+  --color-toast-control-bg: var(--palette-blue-900);
+  --color-toast-text: var(--palette-amber-50);
+  --shadow-toast: 0 2px 11.8px 0 rgba(0, 0, 0, 0.1), 0 4px 9.2px 0 rgba(0, 0, 0, 0.08);
+  /* Tooltip: Figma's shadow-md, a lighter float than a popover. Neutral black in both themes. */
+  --shadow-tooltip: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --color-text: var(--palette-neutral-900);
   --color-text-secondary: var(--palette-neutral-500);
   --color-text-on-primary: var(--palette-neutral-0);
@@ -330,6 +339,37 @@
   outline: none;
 }
 
+/*
+ * Focus ring drawn inside the element instead of 2px outside it. Needed wherever a container clips
+ * its children (overflow hidden/auto — a chip, a scrolling list, a popover, a table cell): an
+ * outside ring there is cut off, leaving keyboard users a half-visible or invisible focus cue.
+ * `.focus-inset` opts a container's descendants in; popovers and table cells are covered outright.
+ * Unlayered for the same reason as the rules above.
+ */
+.focus-inset :focus-visible,
+[data-radix-popper-content-wrapper] :focus-visible,
+[role='gridcell'] :focus-visible {
+  outline-offset: -2px;
+}
+
+/*
+ * Selected table cell: a single 1px line on the grid lines themselves. An `outline` can't do this —
+ * inset, it sits *next to* the neighbouring cell's grey border on the top and left, so the edge
+ * reads as two lines. Here the top/left line is a shadow cast over that neighbour border, and the
+ * right/bottom line is the cell's own border, recoloured. Applies to a keyboard-focused cell, to an
+ * inline-control cell (`data-fill-cell`) while focus is inside it, and while its dropdown is open
+ * (focus has then moved into the portalled panel). Unlayered for the same reason as the rules above.
+ */
+[role='gridcell']:focus-visible,
+[role='columnheader']:focus-visible,
+[role='gridcell'][data-fill-cell]:focus-within,
+[role='gridcell'][data-fill-cell]:has([aria-expanded='true']) {
+  outline: none;
+  border-right: 1px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-primary);
+  box-shadow: -1px -1px 0 0 var(--color-primary);
+}
+
 /* Dark mode — follows system preference unless overridden by [data-theme]. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -349,7 +389,7 @@
     --color-surface-hover: color-mix(in srgb, var(--palette-neutral-800) 50%, var(--palette-neutral-900));
     --color-table-border: var(--palette-neutral-700);
     --color-table-header-bg: var(--palette-blue-950);
-    --color-table-cell-hover: var(--palette-blue-900);
+    --color-table-row-hover: var(--palette-blue-900);
     --color-popover-border: var(--palette-blue-800);
     --color-sidenav-rail: var(--palette-blue-800);
     --color-sidenav-group-indicator: var(--palette-blue-700);
@@ -411,7 +451,7 @@
   --color-surface-hover: color-mix(in srgb, var(--palette-neutral-800) 50%, var(--palette-neutral-900));
   --color-table-border: var(--palette-neutral-700);
   --color-table-header-bg: var(--palette-blue-950);
-  --color-table-cell-hover: var(--palette-blue-900);
+  --color-table-row-hover: var(--palette-blue-900);
   --color-popover-border: var(--palette-blue-800);
   --color-sidenav-rail: var(--palette-blue-800);
   --color-sidenav-group-indicator: var(--palette-blue-700);

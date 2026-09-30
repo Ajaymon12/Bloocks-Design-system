@@ -9,6 +9,8 @@ export type ProgressBarCellProps = {
   label?: ReactNode
   /** 0–100. */
   percent: number | null | undefined
+  /** Names the bar for screen readers. Defaults to "Progress". */
+  accessibilityLabel?: string
   size?: CellSize
   empty?: ReactNode
   isDisabled?: boolean
@@ -16,7 +18,7 @@ export type ProgressBarCellProps = {
   className?: string
 }
 
-export function ProgressBarCell({ label, percent, size, empty, isDisabled, tooltip, className }: ProgressBarCellProps) {
+export function ProgressBarCell({ label, percent, accessibilityLabel = 'Progress', size, empty, isDisabled, tooltip, className }: ProgressBarCellProps) {
   const resolved = useCellProps({ size, empty })
   const isEmpty = isCellValueEmpty(percent)
 
@@ -39,6 +41,7 @@ export function ProgressBarCell({ label, percent, size, empty, isDisabled, toolt
       <div
         className="h-[var(--space-4)] rounded-full bg-muted overflow-hidden"
         role="progressbar"
+        aria-label={accessibilityLabel}
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={100}

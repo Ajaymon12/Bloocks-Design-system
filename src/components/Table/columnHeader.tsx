@@ -55,6 +55,7 @@ export function columnHeader<TData>(label: string, options: ColumnHeaderOptions 
         {sortable ? (
           <button
             type="button"
+            data-sort-toggle=""
             className="inline-flex items-center gap-[var(--space-4)] p-0 border-0 bg-transparent font-medium text-muted-foreground cursor-pointer hover:text-foreground"
             onClick={() => column.toggleSorting(sorted === 'asc')}
           >
@@ -71,6 +72,7 @@ export function columnHeader<TData>(label: string, options: ColumnHeaderOptions 
               <button
                 type="button"
                 aria-label={`Filter ${label}`}
+                data-column-filter=""
                 // The tint is the only cue that a column is narrowing the table — without it a
                 // filtered grid looks like a short one.
                 className={cn(headerButtonClasses, isFiltered && 'text-primary')}
@@ -99,6 +101,7 @@ export function columnHeader<TData>(label: string, options: ColumnHeaderOptions 
             type="button"
             className={headerButtonClasses}
             aria-label={`Filter ${label}`}
+            data-column-filter=""
             title="Filters coming soon"
             onClick={(event) => event.preventDefault()}
           >

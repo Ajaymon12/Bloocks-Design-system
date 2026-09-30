@@ -28,7 +28,9 @@ export function InputCell({ accessibilityLabel, isDisabled, tooltip, className, 
       disabled={isDisabled}
       title={tooltip}
       className={cn(
-        'w-full h-full bg-transparent border-0 outline-none text-inherit font-[family-name:var(--font-family-primary)]',
+        // no-inner-focus-ring: the ring is drawn on the whole cell instead (Table.tsx, fillCell), so
+        // the control doesn't add a second, smaller one of its own.
+        'no-inner-focus-ring w-full h-full bg-transparent border-0 outline-none text-inherit font-[family-name:var(--font-family-primary)]',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         CELL_PADDING,
         className,

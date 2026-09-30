@@ -152,3 +152,84 @@ export const Uncontrolled: Story = {
     await expect(canvas.getByRole('button', { name: 'Filter by department' })).toHaveTextContent('Department: Marketing')
   },
 }
+
+/** Focus stays in the search box while the arrow keys move a highlight through the options (skipping
+ *  disabled ones); Enter toggles the highlighted option. Typing narrows the list and re-homes the
+ *  highlight to the first match. */
+export const KeyboardNavigation: Story = {
+  render: (args) => <Controlled {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter by department' }))
+    const search = await screen.findByPlaceholderText('Search…')
+    const highlighted = () => document.getElementById(search.getAttribute('aria-activedescendant') ?? '')
+
+    await expect(highlighted()).toHaveTextContent('Sales')
+    await userEvent.keyboard('{ArrowDown}')
+    await expect(highlighted()).toHaveTextContent('Engineering')
+
+    // Enter ticks the highlighted option — the panel stays open in multi mode.
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Engineering' })).toBeChecked())
+    await expect(search).toBeVisible()
+
+    // Project Beta is disabled, so ArrowUp from Sales wraps to Project Alpha, not Beta.
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}')
+    await expect(highlighted()).toHaveTextContent('Project Alpha')
+
+    await userEvent.keyboard('mark')
+    await expect(highlighted()).toHaveTextContent('Marketing')
+  },
+}
+
+/** "Add new" turns into a focused input; Enter adds the option to its group and selects it. The parent
+ *  owns `groups`, so it appends the option in `onAddOption`. */
+function WithAdd(args: React.ComponentProps<typeof FilterDropdown>) {
+  const [groups, setGroups] = useState(args.groups)
+  const [value, setValue] = useState<string[]>([])
+  return (
+    <FilterDropdown
+      {...args}
+      groups={groups}
+      value={value}
+      onChange={setValue}
+      onAddOption={(option, groupLabel) =>
+        setGroups((previous) => previous.map((group) => (group.label === groupLabel ? { ...group, options: [...group.options, option] } : group)))
+      }
+    />
+  )
+}
+
+export const AddNewOption: Story = {
+  render: (args) => <WithAdd {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter by department' }))
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add new' }))[0])
+
+    // The input is focused straight away, so the user can just type the name.
+    await expect(await screen.findByLabelText('New item name')).toHaveFocus()
+    await userEvent.keyboard('Finance{Enter}')
+
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Finance' })).toBeChecked())
+    await expect(canvas.getByRole('button', { name: 'Filter by department' })).toHaveTextContent('Department: Finance')
+  },
+}
+
+/** Same inline add in single-select mode: the new option replaces whatever was selected. */
+export const AddNewOptionSingleSelect: Story = {
+  args: { mode: 'single' },
+  render: (args) => <WithAdd {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Filter by department' }))
+    await userEvent.click(await screen.findByText('Sales'))
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add new' }))[0])
+    await userEvent.keyboard('Finance{Enter}')
+
+    // Finance replaces Sales rather than joining it.
+    await waitFor(() => {
+      expect(canvas.getByRole('button', { name: 'Filter by department' })).toHaveTextContent('Department: Finance')
+    })
+    await expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    await expect(screen.getByRole('option', { name: 'Finance' })).toHaveAttribute('aria-selected', 'true')
+    await expect(screen.getByRole('option', { name: 'Sales' })).toHaveAttribute('aria-selected', 'false')
+  },
+}

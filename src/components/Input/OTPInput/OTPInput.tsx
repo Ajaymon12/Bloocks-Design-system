@@ -268,7 +268,9 @@ export const OTPInput = forwardRef<(HTMLInputElement | null)[], OTPInputProps>(
                 onKeyDown={handleKeyDown(index)}
                 onFocus={() => setFocusedIndex(index)}
                 onBlur={() => setFocusedIndex((current) => (current === index ? null : current))}
-                aria-label={!label ? `${accessibilityLabel ?? 'One-time code'}, digit ${index + 1} of ${length}` : undefined}
+                // Always named: the group's label doesn't name each box, and a screen reader would otherwise
+                // announce six identical unlabeled fields.
+                aria-label={`${label ?? accessibilityLabel ?? 'One-time code'}, digit ${index + 1} of ${length}`}
                 aria-invalid={resolvedValidationState === 'error' || undefined}
                 aria-describedby={hintText ? hintId : undefined}
                 className={cn(
