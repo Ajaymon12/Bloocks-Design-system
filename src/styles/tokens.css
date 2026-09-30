@@ -112,6 +112,8 @@
   /* Floating-panel (Popover/Combobox/FilterDropdown) border — Figma's own dev-mode export for
    * these panels; doesn't match any existing semantic token (checked --color-primary-hover/-active). */
   --color-popover-border: var(--palette-blue-200);
+  /* Scrollbar thumb inside dropdown lists (Figma: Scroll-area / Thumb). */
+  --color-scrollbar-thumb: var(--palette-blue-200);
   /*
    * Navigation — Figma: Karbon - AI Accountant, "Top and sidebar" (node 21645:59876).
    * The top bar is dark in both themes (as in Blade), so its tokens are not redefined for dark mode.
@@ -391,6 +393,7 @@
     --color-table-header-bg: var(--palette-blue-950);
     --color-table-row-hover: var(--palette-blue-900);
     --color-popover-border: var(--palette-blue-800);
+    --color-scrollbar-thumb: var(--palette-blue-800);
     --color-sidenav-rail: var(--palette-blue-800);
     --color-sidenav-group-indicator: var(--palette-blue-700);
     --color-overlay: color-mix(in srgb, var(--palette-neutral-1000) 55%, transparent);
@@ -453,6 +456,7 @@
   --color-table-header-bg: var(--palette-blue-950);
   --color-table-row-hover: var(--palette-blue-900);
   --color-popover-border: var(--palette-blue-800);
+  --color-scrollbar-thumb: var(--palette-blue-800);
   --color-sidenav-rail: var(--palette-blue-800);
   --color-sidenav-group-indicator: var(--palette-blue-700);
   --color-overlay: color-mix(in srgb, var(--palette-neutral-1000) 55%, transparent);

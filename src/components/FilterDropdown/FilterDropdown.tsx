@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 // Icons picked from Foundations → Icons in Storybook — that's the source of truth for what's
 // available and already in use. Keep src/foundations/usedIcons.ts in sync with these.
-import { Check, Plus, SearchX } from 'lucide-react'
+import { CircleCheck, Plus, SearchX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PanelSearch } from '@/components/ui/panel-search'
@@ -240,7 +240,7 @@ export function FilterDropdownPanel({
         }}
       />
 
-      <div ref={listRef} id={`${panelId}-list`} role="listbox" aria-multiselectable={mode === 'multi'} className="max-h-[288px] overflow-y-auto py-[var(--space-4)]">
+      <div ref={listRef} id={`${panelId}-list`} role="listbox" aria-multiselectable={mode === 'multi'} className="dropdown-scroll max-h-[288px] overflow-y-auto py-[var(--space-4)]">
         {filteredGroups.length === 0 ? (
           <div className="flex flex-col items-center gap-[var(--space-8)] px-[var(--space-12)] py-[var(--space-24)] text-center">
             <SearchX size={20} className="text-muted-foreground" aria-hidden="true" />
@@ -294,9 +294,11 @@ export function FilterDropdownPanel({
                         'px-[var(--space-8)] py-[var(--space-4)]',
                         option.disabled
                           ? 'cursor-not-allowed opacity-50'
-                          : 'cursor-pointer hover:bg-[var(--color-bg-subtle)]',
+                          : 'cursor-pointer hover:bg-[var(--color-surface-hover)]',
                         // The keyboard-highlighted option, same tint as hover.
-                        active?.option === option && 'bg-[var(--color-bg-subtle)]',
+                        active?.option === option && 'bg-[var(--color-surface-hover)]',
+                        // Figma "Dropdown single select": the chosen row sits on the light primary tint.
+                        mode === 'single' && isChecked && 'bg-[var(--color-primary-subtle)] hover:bg-[var(--color-primary-subtle)]',
                       )}
                     >
                       {mode === 'multi' && (
@@ -309,14 +311,14 @@ export function FilterDropdownPanel({
                       )}
                       <span
                         className={cn(
-                          'min-w-0 flex-1 truncate text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)]',
-                          isChecked ? 'font-medium text-foreground' : 'text-muted-foreground',
+                          'min-w-0 flex-1 truncate text-[length:var(--text-body-3-size)] leading-[var(--text-body-3-line-height)] text-foreground',
+                          mode === 'multi' && isChecked && 'font-medium',
                         )}
                       >
                         {option.label}
                       </span>
                       {/* Single select has no checkbox — a trailing tick marks the current choice. */}
-                      {mode === 'single' && isChecked && <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />}
+                      {mode === 'single' && isChecked && <CircleCheck size={16} className="shrink-0 text-primary" aria-hidden="true" />}
                     </label>
                   )
                 })}
@@ -328,7 +330,7 @@ export function FilterDropdownPanel({
                     <button
                       type="button"
                       onClick={() => setAddingIn(group.label)}
-                      className="mx-[var(--space-8)] flex w-[calc(100%-var(--space-16))] cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-6)] border-0 bg-transparent px-[var(--space-8)] py-[var(--space-4)] text-left text-[length:var(--text-body-3-size)] font-medium text-primary hover:bg-[var(--color-bg-subtle)]"
+                      className="mx-[var(--space-8)] flex w-[calc(100%-var(--space-16))] cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-6)] border-0 bg-transparent px-[var(--space-8)] py-[var(--space-4)] text-left text-[length:var(--text-body-3-size)] font-medium text-primary hover:bg-[var(--color-surface-hover)]"
                     >
                       <Plus size={16} aria-hidden="true" />
                       Add new

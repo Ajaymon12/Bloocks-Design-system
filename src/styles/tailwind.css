@@ -230,3 +230,9 @@
     }
   }
 }
+
+/* Scrollable dropdown lists (Figma: Scroll-area / Scrollbar): a thin track with a tinted thumb. */
+@utility dropdown-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
